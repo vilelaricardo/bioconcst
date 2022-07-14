@@ -1,0 +1,82 @@
+FUNCTION_BLOCK  TESTGENERATOR
+
+	VAR_INPUT
+		fitness: REAL;
+		coverage: REAL;
+		originality: REAL;
+	END_VAR
+
+
+	VAR_OUTPUT
+		survivor:REAL;
+	END_VAR
+
+	FUZZIFY	fitness
+		TERM Low 		:= TRIAN 0 0 0.4167;
+		TERM Medium 	:= TRIAN 0.0833333333333333 0.5 0.916666666666667;
+		TERM High 		:= TRIAN 0.5833 1 1;
+	END_FUZZIFY
+	
+
+	
+	FUZZIFY	coverage
+		TERM Low	:= TRAPE 0 0 20 40;
+		TERM Medium	:= TRIAN 25 50 75;
+		TERM High	:= TRAPE 60 80 100 100;
+	END_FUZZIFY
+	
+		
+
+	FUZZIFY	originality
+		TERM Low 		:= TRIAN 0 0 0.4167;
+		TERM Medium 	:= TRIAN 0.0833333333333333 0.5 0.916666666666667;
+		TERM High 		:= TRIAN 0.5833 1 1;
+	END_FUZZIFY
+
+
+	DEFUZZIFY survivor
+		TERM Very_Low 	:= TRIAN 0 0 0.25;
+		TERM Low 		:= TRIAN 0 0.25 0.5;
+		TERM Medium 	:= TRIAN 0.25 0.5 0.75;
+		TERM High 		:= TRIAN 0.5 0.75 1;
+		TERM Very_High	:= TRIAN 0.75 1 1;
+		RANGE:= (0.0..1.0);
+		METHOD : COG;
+	END_DEFUZZIFY
+	
+	RULEBLOCK rules
+		RULE 1 	: IF coverage IS High 		AND fitness IS Low 		AND originality IS High 	THEN survivor IS	Very_High; 
+		RULE 2 	: IF coverage IS High 		AND fitness IS Low 		AND originality IS Medium 	THEN survivor IS	Very_High;
+		RULE 3 	: IF coverage IS High 		AND fitness IS Low 		AND originality IS Low 		THEN survivor IS	High; 	
+		RULE 4 	: IF coverage IS High 		AND fitness IS Medium 	AND originality IS High 	THEN survivor IS	Very_High; 
+		RULE 5 	: IF coverage IS High 		AND fitness IS Medium 	AND originality IS Medium 	THEN survivor IS	High; 
+		RULE 6 	: IF coverage IS High 		AND fitness IS Medium 	AND originality IS Low 		THEN survivor IS	Medium; 	
+		RULE 7 	: IF coverage IS High 		AND fitness IS High 	AND originality IS High 	THEN survivor IS	High; 
+		RULE 8 	: IF coverage IS High 		AND fitness IS High 	AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 9 	: IF coverage IS High 		AND fitness IS High 	AND originality IS Low 		THEN survivor IS	Medium; 	
+		RULE 10 : IF coverage IS Medium 	AND fitness IS Low 		AND originality IS High 	THEN survivor IS	High; 
+		RULE 11 : IF coverage IS Medium 	AND fitness IS Low 		AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 12 : IF coverage IS Medium 	AND fitness IS Low 		AND originality IS Low 		THEN survivor IS	Medium; 	
+		RULE 13 : IF coverage IS Medium 	AND fitness IS Medium 	AND originality IS High 	THEN survivor IS	High; 
+		RULE 14 : IF coverage IS Medium 	AND fitness IS Medium 	AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 15 : IF coverage IS Medium 	AND fitness IS Medium 	AND originality IS Low 		THEN survivor IS	Low; 	
+		RULE 16 : IF coverage IS Medium 	AND fitness IS High 	AND originality IS High 	THEN survivor IS	High; 
+		RULE 17 : IF coverage IS Medium 	AND fitness IS High 	AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 18 : IF coverage IS Medium 	AND fitness IS High 	AND originality IS Low 		THEN survivor IS	Low; 	
+		RULE 19 : IF coverage IS Low 		AND fitness IS Low 		AND originality IS High 	THEN survivor IS	High; 
+		RULE 20 : IF coverage IS Low 		AND fitness IS Low 		AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 21 : IF coverage IS Low 		AND fitness IS Low 		AND originality IS Low 		THEN survivor IS	Low; 	
+		RULE 22 : IF coverage IS Low 		AND fitness IS Medium 	AND originality IS High 	THEN survivor IS	Medium; 
+		RULE 23 : IF coverage IS Low 		AND fitness IS Medium 	AND originality IS Medium 	THEN survivor IS	Medium; 
+		RULE 24 : IF coverage IS Low 		AND fitness IS Medium 	AND originality IS Low 		THEN survivor IS	Low; 	
+		RULE 25 : IF coverage IS Low 		AND fitness IS High 	AND originality IS High 	THEN survivor IS	Medium; 
+		RULE 26 : IF coverage IS Low 		AND fitness IS High 	AND originality IS Medium 	THEN survivor IS	Very_Low; 
+		RULE 27 : IF coverage IS Low 		AND fitness IS High 	AND originality IS Low 		THEN survivor IS	Very_Low; 
+	END_RULEBLOCK
+	
+
+END_FUNCTION_BLOCK
+
+
+
+
