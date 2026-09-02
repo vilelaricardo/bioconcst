@@ -36,19 +36,54 @@ public final class ValiParRun {
 
 	}
 
-	public void createProject(int testID) {
+	// Instrumentation only depends on the program under test, never on the test
+	// data of an individual, so it's done once per generatorEvolution() run
+	// instead of once per fitness evaluation.
+	public void createBaseline(ProcessBuilder instrumentation, File filesPath) {
+		File baselineDir = new File("./experiment/baseline");
 		try {
-			FileUtils.forceMkdir(new File("./experiment/test" + testID));
+			FileUtils.forceMkdir(baselineDir);
+			FileUtils.copyDirectory(filesPath, baselineDir,
+					FileFilterUtils.and(FileFileFilter.FILE, FileFilterUtils.suffixFileFilter(".class")));
 
-			Process process = new ProcessBuilder("valipar", "project", "--setup")
-					.directory(new File("./experiment/test" + testID)).start();
+			Process process = new ProcessBuilder("valipar", "project", "--setup").directory(baselineDir).start();
 			process.waitFor();
 
+			process = instrumentation.directory(baselineDir).start();
+			process.waitFor();
+
+			process = new ProcessBuilder("valipar", "elem").directory(baselineDir).start();
+			process.waitFor();
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
-			System.out.println("Failure to create the ValiPar project!");
 		}
 
+		if (isBaselineEmpty()) {
+			createBaseline(instrumentation, filesPath);
+		}
+	}
+
+	// Copies the pre-instrumented baseline into this individual's own project
+	// directory - a plain file copy instead of re-running instrumentation.
+	// "tests" and "source_files" are created fresh (empty) since those are
+	// per-individual, not part of the reusable baseline.
+	public void createProjectFromBaseline(int testID) {
+		File baselineValipar = new File("./experiment/baseline/valipar");
+		File projectDir = new File("./experiment/test" + testID);
+		File projectValipar = new File(projectDir, "valipar");
+		try {
+			FileUtils.copyDirectory(new File("./experiment/baseline"), projectDir,
+					FileFilterUtils.and(FileFileFilter.FILE, FileFilterUtils.suffixFileFilter(".class")));
+			FileUtils.copyDirectory(new File(baselineValipar, "config"), new File(projectValipar, "config"));
+			FileUtils.copyDirectory(new File(baselineValipar, "instrumented"), new File(projectValipar, "instrumented"));
+			FileUtils.copyDirectory(new File(baselineValipar, "pcfgs"), new File(projectValipar, "pcfgs"));
+			FileUtils.copyDirectory(new File(baselineValipar, "required_elements"),
+					new File(projectValipar, "required_elements"));
+			FileUtils.forceMkdir(new File(projectValipar, "tests"));
+			FileUtils.forceMkdir(new File(projectValipar, "source_files"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void deleteProject(int testID) {
@@ -80,15 +115,6 @@ public final class ValiParRun {
 		}
 	}
 
-	public void elementsGenerator(int testID) {
-		try {
-			Process process = Runtime.getRuntime().exec("valipar elem", null, new File("./experiment/test" + testID));
-			process.waitFor();
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-
 	public void evaluation(int testID) {
 		try {
 
@@ -102,25 +128,6 @@ public final class ValiParRun {
 
 	public static void execution(int testID) {
 		ValiParContainerPool.getInstance(new File("./experiment")).execute(testID);
-	}
-
-	public void instrumentation(int testID, ProcessBuilder instrumentation, File filesPath) {
-		try {
-
-			FileUtils.copyDirectory(filesPath, new File("./experiment/test" + testID),
-					FileFilterUtils.and(FileFileFilter.FILE, FileFilterUtils.suffixFileFilter(".class")));
-
-			Process process = instrumentation.directory(new File("./experiment/test" + testID)).start();
-			process.waitFor();
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		if (isEmpty(testID)) {
-			instrumentation(testID,instrumentation, filesPath);
-		}
-		
-		
 	}
 
 	public static synchronized boolean isPortinUse(int port) {
@@ -137,19 +144,13 @@ public final class ValiParRun {
 
 	}
 	
-	public boolean isEmpty(int testID){
-		
-
-		try(DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("./experiment/test"+testID+"/valipar/instrumented"))) {
+	public boolean isBaselineEmpty() {
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("./experiment/baseline/valipar/instrumented"))) {
 			return !dirStream.iterator().hasNext();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return true; 
+			return true;
 		}
-		
-		
-		
 	}
 
 }

@@ -42,8 +42,6 @@ public class BioConcSTCore {
 	private Problem<Genotype<IntegerGene>, IntegerGene, TestFitness> PROBLEM;
 	private SolutionResult solutionResults;
 
-	private static File filesPath;
-	private static ProcessBuilder instrumentation;
 	private static String[] testSetup;
 
 	public BioConcSTCore(int populationSize, int generations, double mutationRate, double crossoverRate, int min,
@@ -67,14 +65,13 @@ public class BioConcSTCore {
 	public SolutionResult generatorEvolution(File filesPath, ProcessBuilder instrumentation, String[] testSetup) {
 
 		iterator = 0;
-		this.filesPath = filesPath;
-		this.instrumentation = instrumentation;
 		this.testSetup = testSetup;
 		GENOTYPE = Genotype.of(IntegerChromosome.of(min, max, argumentsLenght));
 		PROBLEM = Problem.of(BioConcSTCore::fitness, Codec.of(GENOTYPE, gt -> gt));
 
 		ValiParRun valipar = new ValiParRun();
 		valipar.newExperiment();
+		valipar.createBaseline(instrumentation, filesPath);
 
 		System.out.println("Starting evolution...");
 
@@ -124,7 +121,7 @@ public class BioConcSTCore {
 
 	public static TestFitness fitness(Genotype<IntegerGene> x) {
 
-		return new FitnessFunction(x, increment(), filesPath, instrumentation, testSetup).getFitness();
+		return new FitnessFunction(x, increment(), testSetup).getFitness();
 
 	}
 
