@@ -1,7 +1,5 @@
 package BioConcST;
 
-import java.io.File;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -22,18 +20,13 @@ public final class FitnessFunction {
 	private RequiredElem required_elements;
 	private Genotype<IntegerGene> testdata;
 	private int testID;
-	private File filesPath;
-	private ProcessBuilder instrumentation;
 	private String[] testSetup;
 	private Double coverage;
 
-	public FitnessFunction(Genotype<IntegerGene> testdata, int testID, File filesPath, ProcessBuilder instrumentation,
-			String[] testSetup) {
+	public FitnessFunction(Genotype<IntegerGene> testdata, int testID, String[] testSetup) {
 
 		this.testdata = testdata;
 		this.testID = testID;
-		this.filesPath = filesPath;
-		this.instrumentation = instrumentation;
 		this.testSetup = testSetup;
 		this.coverage = 0.0;
 		newValiParInstance();
@@ -78,9 +71,7 @@ public final class FitnessFunction {
 
 	private void newValiParInstance() {
 		ValiParRun valipar = new ValiParRun();
-		valipar.createProject(testID);
-		valipar.instrumentation(testID, instrumentation, filesPath);
-		valipar.elementsGenerator(testID);
+		valipar.createProjectFromBaseline(testID);
 		valipar.newTestCase(testdata, testID, testSetup);
 		ValiParRun.execution(testID);
 		valipar.evaluation(testID);
