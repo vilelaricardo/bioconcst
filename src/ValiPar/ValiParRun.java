@@ -34,6 +34,11 @@ public final class ValiParRun {
 			e1.printStackTrace();
 		}
 
+		// Any already-running container pool is bind-mounted to the directory
+		// instance that was just deleted - force it to restart against the
+		// fresh one (see ValiParContainerPool.reset()).
+		ValiParContainerPool.reset();
+
 	}
 
 	// Instrumentation only depends on the program under test, never on the test

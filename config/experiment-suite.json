@@ -1,0 +1,51 @@
+{
+  "ga": {
+    "populationSize": 6,
+    "generations": 100,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.1,
+    "offspringFraction": 0.9,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 25,
+    "executions": 20
+  },
+  "strategy": "GA",
+  "output": {
+    "directory": "./results"
+  },
+  "benchmarks": [
+    {
+      "name": "gcdmaster",
+      "path": "./benchmark/message_passing/005_parallel_gcd",
+      "processes": ["GcdMaster", "GcdSlave", "GcdSlave", "GcdSlave"],
+      "parseFiles": ["GcdMaster.class", "GcdSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "GcdMaster", "args": "TESTDATA" },
+        { "id": 1, "className": "GcdSlave", "args": "1" },
+        { "id": 2, "className": "GcdSlave", "args": "2" },
+        { "id": 3, "className": "GcdSlave", "args": "3" }
+      ],
+      "argumentsLength": 3
+    },
+    {
+      "name": "producer-consumer",
+      "path": "./benchmark/shared_memory/004_producer_consumer_semaphore_lock_condition_iterations",
+      "processes": ["Main"],
+      "parseFiles": ["Main.class", "Producer.class", "Consumer.class", "Buffer_Semaphore.class", "Buffer_With_Lock_Condition.class"],
+      "ignoreFiles": [],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Main", "args": "TESTDATA" }
+      ],
+      "argumentsLength": 4,
+      "argumentRanges": [
+        { "min": 4, "max": 5 },
+        { "min": 0, "max": 2 },
+        { "min": 1, "max": 11 },
+        { "min": 0, "max": 2 }
+      ]
+    }
+  ]
+}

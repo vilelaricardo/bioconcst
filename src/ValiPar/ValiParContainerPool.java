@@ -35,7 +35,8 @@ public final class ValiParContainerPool {
 	}
 
 	// experimentDir is only used to start the pool on the first call; later
-	// calls return the already-running pool.
+	// calls return the already-running pool - until reset() tears it down,
+	// which a new ValiParRun.newExperiment() call requires (see reset()).
 	public static ValiParContainerPool getInstance(File experimentDir) {
 		if (instance == null) {
 			synchronized (ValiParContainerPool.class) {
@@ -45,6 +46,21 @@ public final class ValiParContainerPool {
 			}
 		}
 		return instance;
+	}
+
+	// A running pool's containers are bind-mounted to a specific "./experiment"
+	// directory. ValiParRun.newExperiment() deletes and recreates that
+	// directory - harmless for a single-benchmark run (the pool doesn't exist
+	// yet at that point) but, in a multi-benchmark suite run, the second and
+	// later benchmarks would otherwise reuse containers still mounted to the
+	// now-stale directory instance, silently producing empty traces. Called
+	// from newExperiment() itself so every benchmark in a suite gets a pool
+	// mounted to its own fresh directory.
+	public static synchronized void reset() {
+		if (instance != null) {
+			instance.shutdown();
+			instance = null;
+		}
 	}
 
 	private void startWorkers(File experimentDir) {

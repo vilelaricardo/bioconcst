@@ -29,28 +29,40 @@ public class TestDataGeneration {
 		String configPath = args.length > 0 ? args[0] : "config/gcdmaster-ga.json";
 		ExperimentConfig config = ExperimentConfig.load(configPath);
 
-		File filesPath = new File(config.benchmark.path);
-		ProcessBuilder instrumentation = buildInstrumentation(config.benchmark);
-		String[] testSetup = buildTestSetup(config.benchmark);
+		if (config.benchmarks != null && !config.benchmarks.isEmpty()) {
+			// Suite run: same ga/strategy/output settings applied to every
+			// benchmark, so the treatment can't drift between benchmarks.
+			for (BenchmarkConfig benchmark : config.benchmarks) {
+				runBenchmark(config, benchmark, benchmark.name + "-" + config.strategy.toLowerCase());
+			}
+		} else {
+			runBenchmark(config, config.benchmark, config.output.runName);
+		}
+
+		System.exit(0);
+	}
+
+	private static void runBenchmark(ExperimentConfig config, BenchmarkConfig benchmark, String runName)
+			throws IOException {
+		File filesPath = new File(benchmark.path);
+		ProcessBuilder instrumentation = buildInstrumentation(benchmark);
+		String[] testSetup = buildTestSetup(benchmark);
 		SearchStrategy strategy = SearchStrategy.resolve(config.strategy);
 
 		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
 
 		for (int i = 0; i < config.ga.executions; i++) {
 
-			System.out.println("Starting: " + formatter.format(new Date(System.currentTimeMillis())));
+			System.out.println("Starting " + runName + ": " + formatter.format(new Date(System.currentTimeMillis())));
 
-			SolutionResult result = strategy.run(config, filesPath, instrumentation, testSetup);
+			SolutionResult result = strategy.run(config, benchmark, filesPath, instrumentation, testSetup);
 
-			ResultsWriter.writeGenerations(result, config.output.directory,
-					config.output.runName + "-execution" + i + ".csv");
+			ResultsWriter.writeGenerations(result, config.output.directory, runName + "-execution" + i + ".csv");
 
-			System.out.println("Ending: " + formatter.format(new Date(System.currentTimeMillis())));
+			System.out.println("Ending " + runName + ": " + formatter.format(new Date(System.currentTimeMillis())));
 
-			compressResults(i, config.output.runName);
+			compressResults(i, runName);
 		}
-
-		System.exit(0);
 	}
 
 	private static ProcessBuilder buildInstrumentation(BenchmarkConfig benchmark) {

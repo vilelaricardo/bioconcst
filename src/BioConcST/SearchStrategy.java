@@ -9,7 +9,11 @@ import java.io.File;
  */
 public interface SearchStrategy {
 
-	SolutionResult run(ExperimentConfig config, File filesPath, ProcessBuilder instrumentation, String[] testSetup);
+	// benchmark is passed explicitly (rather than read from config.benchmark)
+	// because a suite run iterates config.benchmarks - config.benchmark is
+	// null in that case.
+	SolutionResult run(ExperimentConfig config, BenchmarkConfig benchmark, File filesPath,
+			ProcessBuilder instrumentation, String[] testSetup);
 
 	static SearchStrategy resolve(String name) {
 		if (name == null || name.equalsIgnoreCase("GA")) {
