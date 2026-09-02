@@ -106,10 +106,13 @@ public class BioConcSTCore {
 
 		final EvolutionStatistics<TestFitness, ?> statistics = EvolutionStatistics.ofNumber();
 
-		// Tracks, generation by generation, the coverage of the best individual and
-		// the population from whichever generation achieved the best coverage so far
-		// - this replaces the "sync_coverage"/"bestpop" fields that used to live on a
-		// patched Engine (see FuzzySelector.java / SolutionResult.java for the rest).
+		// Tracks, generation by generation, the coverage of the population as a
+		// whole (the union of what every living individual covers - what the tool
+		// actually delivers as a test suite, not any single individual's own
+		// coverage) and the population from whichever generation achieved the best
+		// coverage so far - this replaces the "sync_coverage"/"bestpop" fields that
+		// used to live on a patched Engine (see FuzzySelector.java / SolutionResult.java
+		// for the rest).
 		final double[] bestCoverageSoFar = { -1.0 };
 		final List<Double> syncCoverageHistory = new ArrayList<>();
 		final AtomicReference<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPopulation = new AtomicReference<>(
@@ -117,7 +120,7 @@ public class BioConcSTCore {
 
 		final ISeq<Phenotype<IntegerGene, TestFitness>> results = engine.stream()
 				.limit(Limits.byFixedGeneration(generations)).peek(statistics).peek(result -> {
-					double genCoverage = result.bestPhenotype().fitness().getCoverage();
+					double genCoverage = SuiteCoverage.unionCoveragePercent(result.population());
 					syncCoverageHistory.add(genCoverage);
 					if (genCoverage > bestCoverageSoFar[0]) {
 						bestCoverageSoFar[0] = genCoverage;
