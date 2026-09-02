@@ -96,15 +96,23 @@ public class BioConcSTCore {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(threadExecutors);
 
-		// Dedup runs first, hall-of-fame injection second - if the order were
-		// reversed, toUniquePopulation() could treat a freshly-injected champion
-		// as a duplicate and regenerate it away, undoing the guarantee.
+		// Hall-of-fame runs first, dedup second - NOT the other way around.
+		// toUniquePopulation() replaces duplicate genotypes with fresh, still
+		// UNEVALUATED ones and marks the result "dirty" for Jenetics' own engine
+		// to evaluate as a separate internal step after the interceptor chain
+		// returns; calling .fitness() on those (as hall-of-fame does) before that
+		// happens throws "Phenotype has no assigned fitness value" (hit this in
+		// practice). Running hall-of-fame first means it only ever sees an
+		// already-fully-evaluated population. This ordering doesn't let dedup
+		// undo the injection either: the champion is only ever injected into a
+		// slot where its genotype doesn't already occur, so dedup never sees it
+		// as a duplicate.
 		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> uniqueInterceptor = EvolutionResult
 				.toUniquePopulation();
 		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> hallOfFameInterceptor = HallOfFame
 				.interceptor();
 		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> combinedInterceptor = io.jenetics.engine.EvolutionInterceptor
-				.ofAfter(result -> hallOfFameInterceptor.after(uniqueInterceptor.after(result)));
+				.ofAfter(result -> uniqueInterceptor.after(hallOfFameInterceptor.after(result)));
 
 		final Engine<IntegerGene, TestFitness> engine = Engine.builder(PROBLEM).minimizing()
 				.survivorsFraction(suvivorsFraction).offspringFraction(offspringFraction)
@@ -128,17 +136,23 @@ public class BioConcSTCore {
 		final AtomicReference<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPopulation = new AtomicReference<>(
 				ISeq.empty());
 
-		final ISeq<Phenotype<IntegerGene, TestFitness>> results = engine.stream()
-				.limit(Limits.byFixedGeneration(generations)).peek(statistics).peek(result -> {
-					double genCoverage = SuiteCoverage.unionCoveragePercent(result.population());
-					syncCoverageHistory.add(genCoverage);
-					if (genCoverage > bestCoverageSoFar[0]) {
-						bestCoverageSoFar[0] = genCoverage;
-						bestPopulation.set(result.population());
-					}
-				}).map(EvolutionResult::bestPhenotype).collect(ISeq.toISeq());
-
-		executor.shutdown();
+		final ISeq<Phenotype<IntegerGene, TestFitness>> results;
+		try {
+			results = engine.stream().limit(Limits.byFixedGeneration(generations)).peek(statistics).peek(result -> {
+				double genCoverage = SuiteCoverage.unionCoveragePercent(result.population());
+				syncCoverageHistory.add(genCoverage);
+				if (genCoverage > bestCoverageSoFar[0]) {
+					bestCoverageSoFar[0] = genCoverage;
+					bestPopulation.set(result.population());
+				}
+			}).map(EvolutionResult::bestPhenotype).collect(ISeq.toISeq());
+		} finally {
+			// Otherwise a stream failure (as happened in practice - see
+			// HallOfFame/toUniquePopulation ordering) leaves this thread pool's
+			// non-daemon threads running forever, since shutdown() would never be
+			// reached.
+			executor.shutdown();
+		}
 
 		setSolutionResults(new SolutionResult(syncCoverageHistory, statistics, results, bestPopulation.get()));
 

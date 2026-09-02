@@ -57,10 +57,14 @@ public class StubGeneticAlgorithmStrategy implements SearchStrategy {
 		Selector<IntegerGene, TestFitness> survivorsSelector = new FuzzySelector<>();
 		Selector<IntegerGene, TestFitness> offspringSelector = new FuzzySelector<>();
 
+		// Hall-of-fame first, dedup second - see BioConcSTCore.generatorEvolution()
+		// for why the order matters (dedup leaves replaced individuals
+		// unevaluated on purpose; hall-of-fame calling .fitness() on those
+		// before Jenetics evaluates them throws).
 		EvolutionInterceptor<IntegerGene, TestFitness> uniqueInterceptor = EvolutionResult.toUniquePopulation();
 		EvolutionInterceptor<IntegerGene, TestFitness> hallOfFameInterceptor = HallOfFame.interceptor();
 		EvolutionInterceptor<IntegerGene, TestFitness> combinedInterceptor = EvolutionInterceptor
-				.ofAfter(result -> hallOfFameInterceptor.after(uniqueInterceptor.after(result)));
+				.ofAfter(result -> uniqueInterceptor.after(hallOfFameInterceptor.after(result)));
 
 		Engine<IntegerGene, TestFitness> engine = Engine.builder(problem).minimizing()
 				.survivorsFraction(ga.survivorsFraction).offspringFraction(ga.offspringFraction)
