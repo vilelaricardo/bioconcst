@@ -46,6 +46,192 @@
         { "min": 1, "max": 11 },
         { "min": 0, "max": 2 }
       ]
+    },
+    {
+      "name": "gcd-two-slaves",
+      "path": "./benchmark/message_passing/006_parallel_gcd_two_slaves",
+      "processes": ["GcdMaster", "GcdSlave", "GcdSlave"],
+      "parseFiles": ["GcdMaster.class", "GcdSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "GcdMaster", "args": "TESTDATA" },
+        { "id": 1, "className": "GcdSlave", "args": "1" },
+        { "id": 2, "className": "GcdSlave", "args": "2" }
+      ],
+      "argumentsLength": 3
+    },
+    {
+      "name": "gcd-lcm",
+      "path": "./benchmark/message_passing/007_gcd_lcm",
+      "processes": ["GcdLcmMaster", "GcdLcmSlave", "GcdLcmSlave", "GcdLcmSlave"],
+      "parseFiles": ["GcdLcmMaster.class", "GcdLcmSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "GcdLcmMaster", "args": "TESTDATA" },
+        { "id": 1, "className": "GcdLcmSlave", "args": "1" },
+        { "id": 2, "className": "GcdLcmSlave", "args": "2" },
+        { "id": 3, "className": "GcdLcmSlave", "args": "3" }
+      ],
+      "argumentsLength": 4,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 100 },
+        { "min": 0, "max": 100 },
+        { "min": 0, "max": 100 }
+      ]
+    },
+    {
+      "name": "token-ring-iterations",
+      "path": "./benchmark/message_passing/008_token_ring_iterations",
+      "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+      "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "TokenRingMaster", "args": "0 TESTDATA 4" },
+        { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+        { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+        { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+      ],
+      "argumentsLength": 3,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 2 },
+        { "min": 1, "max": 11 }
+      ]
+    },
+    {
+      "name": "token-ring-same-primitives",
+      "path": "./benchmark/message_passing/009_token_ring_both_directions_same_primitives",
+      "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+      "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "TokenRingMaster", "args": "0 TESTDATA 4" },
+        { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+        { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+        { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+      ],
+      "argumentsLength": 1,
+      "argumentRanges": [
+        { "min": 0, "max": 2 }
+      ]
+    },
+    {
+      "name": "token-ring-different-primitives",
+      "path": "./benchmark/message_passing/010_token_ring_both_directions_different_primitives",
+      "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+      "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "TokenRingMaster", "args": "0 TESTDATA 4" },
+        { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+        { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+        { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+      ],
+      "argumentsLength": 2,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 2 }
+      ]
+    },
+    {
+      "name": "sieve-of-eratosthenes",
+      "path": "./benchmark/message_passing/011_parallel_sieve_of_eratosthenes",
+      "processes": ["Master", "Slave", "Slave", "Slave"],
+      "parseFiles": ["Master.class", "Slave.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Master", "args": "0 4 TESTDATA" },
+        { "id": 1, "className": "Slave", "args": "1 4 TESTDATA" },
+        { "id": 2, "className": "Slave", "args": "2 4 TESTDATA" },
+        { "id": 3, "className": "Slave", "args": "3 4 TESTDATA" }
+      ],
+      "argumentsLength": 1,
+      "argumentRanges": [
+        { "min": 20, "max": 10001 }
+      ]
+    },
+    {
+      "name": "roller-coaster",
+      "path": "./benchmark/message_passing/013_roller_coaster",
+      "processes": ["Main", "Car", "Passenger", "Passenger", "Passenger", "Passenger"],
+      "parseFiles": ["Main.class", "Car.class", "Passenger.class"],
+      "ignoreFiles": ["HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Main", "args": "4 TESTDATA" },
+        { "id": 1, "className": "Car", "args": "4 2 TESTDATA" },
+        { "id": 2, "className": "Passenger", "args": "1 TESTDATA" },
+        { "id": 3, "className": "Passenger", "args": "2 TESTDATA" },
+        { "id": 4, "className": "Passenger", "args": "3 TESTDATA" },
+        { "id": 5, "className": "Passenger", "args": "4 TESTDATA" }
+      ],
+      "argumentsLength": 1,
+      "argumentRanges": [
+        { "min": 1, "max": 11 }
+      ]
+    },
+    {
+      "name": "token-ring-file",
+      "path": "./benchmark/message_passing-shared_memory/003_token_ring_file",
+      "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+      "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class", "Producer.class"],
+      "ignoreFiles": ["Buffer.class", "ValiparInitializer.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "TokenRingMaster", "args": "TESTDATA 4" },
+        { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+        { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+        { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+      ],
+      "argumentsLength": 2,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 2 }
+      ]
+    },
+    {
+      "name": "token-ring-broadcast",
+      "path": "./benchmark/message_passing-shared_memory/004_token_ring_broadcast",
+      "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+      "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class", "Producer.class"],
+      "ignoreFiles": ["Buffer.class", "HelperClass.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "TokenRingMaster", "args": "TESTDATA 4" },
+        { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+        { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+        { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+      ],
+      "argumentsLength": 2,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 2 }
+      ]
+    },
+    {
+      "name": "gcd-lcm-both",
+      "path": "./benchmark/message_passing-shared_memory/005_gcd_lcm_both",
+      "processes": ["GcdLcmMaster", "GcdLcmSlave", "GcdLcmSlave"],
+      "parseFiles": ["GcdLcmMaster.class", "GcdLcmSlave.class", "GcdThread.class", "LcmThread.class"],
+      "ignoreFiles": ["HelperClass.class", "Buffer.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "GcdLcmMaster", "args": "2 TESTDATA" },
+        { "id": 1, "className": "GcdLcmSlave", "args": "1" },
+        { "id": 2, "className": "GcdLcmSlave", "args": "2" }
+      ],
+      "argumentsLength": 3
+    },
+    {
+      "name": "matrix",
+      "path": "./benchmark/shared_memory/009_matrix",
+      "processes": ["Matrix"],
+      "parseFiles": ["Matrix.class", "FirstSlave.class", "SecondSlave.class"],
+      "ignoreFiles": [],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Matrix", "args": "2 TESTDATA" }
+      ],
+      "argumentsLength": 1,
+      "argumentRanges": [
+        { "min": 0, "max": 2 }
+      ]
     }
   ]
 }
