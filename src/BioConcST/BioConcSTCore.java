@@ -44,10 +44,12 @@ public class BioConcSTCore {
 	private SolutionResult solutionResults;
 
 	private static String[] testSetup;
+	private int execTimeLimitMs;
+	private static int currentExecTimeLimitMs;
 
 	public BioConcSTCore(int populationSize, int generations, double mutationRate, double crossoverRate, int min,
 			int max, double suvivorsFraction, double offspringFraction, int argumentsLenght,
-			List<ArgumentRange> argumentRanges, int threadExecutors,
+			List<ArgumentRange> argumentRanges, int threadExecutors, int execTimeLimitMs,
 			Selector<IntegerGene, TestFitness> survivorsSelector, Selector<IntegerGene, TestFitness> offspringSelector) {
 		super();
 		this.populationSize = populationSize;
@@ -63,12 +65,14 @@ public class BioConcSTCore {
 		this.offspringSelector = offspringSelector;
 		this.argumentsLenght = argumentsLenght;
 		this.argumentRanges = argumentRanges;
+		this.execTimeLimitMs = execTimeLimitMs;
 	}
 
 	public SolutionResult generatorEvolution(File filesPath, ProcessBuilder instrumentation, String[] testSetup) {
 
 		iterator = 0;
 		this.testSetup = testSetup;
+		currentExecTimeLimitMs = this.execTimeLimitMs;
 		if (argumentRanges != null && !argumentRanges.isEmpty()) {
 			// Jenetics requires every gene within one IntegerChromosome to share
 			// the same [min,max) range, so a heterogeneous argument vector is
@@ -136,7 +140,7 @@ public class BioConcSTCore {
 
 	public static TestFitness fitness(Genotype<IntegerGene> x) {
 
-		return new FitnessFunction(x, increment(), testSetup).getFitness();
+		return new FitnessFunction(x, increment(), testSetup, currentExecTimeLimitMs).getFitness();
 
 	}
 

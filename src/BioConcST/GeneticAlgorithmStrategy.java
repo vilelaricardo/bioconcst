@@ -16,9 +16,12 @@ public class GeneticAlgorithmStrategy implements SearchStrategy {
 		Selector<IntegerGene, TestFitness> survivorsSelector = new FuzzySelector<>();
 		Selector<IntegerGene, TestFitness> offspringSelector = new FuzzySelector<>();
 
+		int execTimeLimitMs = benchmark.execTimeLimitMs != null ? benchmark.execTimeLimitMs
+				: BenchmarkConfig.DEFAULT_EXEC_TIME_LIMIT_MS;
+
 		BioConcSTCore core = new BioConcSTCore(ga.populationSize, ga.generations, ga.mutationRate, ga.crossoverRate,
 				ga.min, ga.max, ga.survivorsFraction, ga.offspringFraction, benchmark.argumentsLength,
-				benchmark.argumentRanges, ga.threadExecutors, survivorsSelector, offspringSelector);
+				benchmark.argumentRanges, ga.threadExecutors, execTimeLimitMs, survivorsSelector, offspringSelector);
 
 		return core.generatorEvolution(filesPath, instrumentation, testSetup);
 	}

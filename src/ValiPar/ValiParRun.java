@@ -145,8 +145,8 @@ public final class ValiParRun {
 		}
 	}
 
-	public static void execution(int testID) {
-		ValiParContainerPool.getInstance(new File("./experiment")).execute(testID);
+	public static void execution(int testID, int execTimeLimitMs) {
+		ValiParContainerPool.getInstance(new File("./experiment")).execute(testID, execTimeLimitMs);
 	}
 
 	public static synchronized boolean isPortinUse(int port) {

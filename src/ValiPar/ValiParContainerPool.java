@@ -78,7 +78,7 @@ public final class ValiParContainerPool {
 		}
 	}
 
-	public void execute(int testID) {
+	public void execute(int testID, int execTimeLimitMs) {
 		String worker;
 		try {
 			worker = idleWorkers.take();
@@ -88,7 +88,7 @@ public final class ValiParContainerPool {
 		}
 		try {
 			Process process = new ProcessBuilder("docker", "exec", "-w", "/work/test" + testID, worker, "valipar",
-					"exec", "-t", "0", "-l", "10000").start();
+					"exec", "-t", "0", "-l", String.valueOf(execTimeLimitMs)).start();
 			process.waitFor();
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();

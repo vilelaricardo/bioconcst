@@ -247,6 +247,22 @@
         { "min": 0, "max": 3 },
         { "min": 0, "max": 3 }
       ]
+    },
+    {
+      "name": "jacobi",
+      "path": "./benchmark/shared_memory/010_jacobi",
+      "processes": ["Master"],
+      "parseFiles": ["Master.class", "Slave.class"],
+      "ignoreFiles": ["SharedVariables.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Master", "args": "2 TESTDATA" }
+      ],
+      "argumentsLength": 2,
+      "argumentRanges": [
+        { "min": 0, "max": 2 },
+        { "min": 0, "max": 2 }
+      ],
+      "execTimeLimitMs": 60000
     }
   ]
 }
