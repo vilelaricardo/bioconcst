@@ -232,6 +232,21 @@
       "argumentRanges": [
         { "min": 0, "max": 2 }
       ]
+    },
+    {
+      "name": "cigarette-smokers",
+      "path": "./benchmark/shared_memory/007_cigarette_smokers",
+      "processes": ["Main"],
+      "parseFiles": ["Main.class", "Controller.class", "Smoker_With_Tobacco.class", "Smoker_With_Paper.class", "Smoker_With_Match.class"],
+      "ignoreFiles": ["SharedObject.class"],
+      "testSetupProcesses": [
+        { "id": 0, "className": "Main", "args": "TESTDATA" }
+      ],
+      "argumentsLength": 2,
+      "argumentRanges": [
+        { "min": 0, "max": 3 },
+        { "min": 0, "max": 3 }
+      ]
     }
   ]
 }
