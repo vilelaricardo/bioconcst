@@ -18,7 +18,7 @@ public class GeneticAlgorithmStrategy implements SearchStrategy {
 
 		BioConcSTCore core = new BioConcSTCore(ga.populationSize, ga.generations, ga.mutationRate, ga.crossoverRate,
 				ga.min, ga.max, ga.survivorsFraction, ga.offspringFraction, config.benchmark.argumentsLength,
-				ga.threadExecutors, survivorsSelector, offspringSelector);
+				config.benchmark.argumentRanges, ga.threadExecutors, survivorsSelector, offspringSelector);
 
 		return core.generatorEvolution(filesPath, instrumentation, testSetup);
 	}

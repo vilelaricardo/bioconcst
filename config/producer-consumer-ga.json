@@ -1,0 +1,36 @@
+{
+  "benchmark": {
+    "name": "producer-consumer",
+    "path": "./benchmark/shared_memory/004_producer_consumer_semaphore_lock_condition_iterations",
+    "processes": ["Main"],
+    "parseFiles": ["Main.class", "Producer.class", "Consumer.class", "Buffer_Semaphore.class", "Buffer_With_Lock_Condition.class"],
+    "ignoreFiles": [],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Main", "args": "TESTDATA" }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      { "min": 4, "max": 5 },
+      { "min": 0, "max": 2 },
+      { "min": 1, "max": 11 },
+      { "min": 0, "max": 2 }
+    ]
+  },
+  "ga": {
+    "populationSize": 6,
+    "generations": 100,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.1,
+    "offspringFraction": 0.9,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 25,
+    "executions": 20
+  },
+  "strategy": "GA",
+  "output": {
+    "directory": "./results",
+    "runName": "producer-consumer-ga-baseline"
+  }
+}

@@ -97,7 +97,21 @@ public final class ValiParRun {
 	}
 
 	public void newTestCase(Genotype<IntegerGene> testdata, int testID, String[] testSetup) {
-		String data = testdata.chromosome().toString().replace("[", "").replace("]", "").replace(",", " ");
+		// testdata.chromosome() would only return the genotype's first
+		// chromosome, silently dropping every argument past the first when a
+		// benchmark uses one length-1 chromosome per argument position (see
+		// BioConcSTCore's per-argument ArgumentRange handling) - so every
+		// chromosome's genes are concatenated here instead.
+		StringBuilder dataBuilder = new StringBuilder();
+		for (io.jenetics.Chromosome<IntegerGene> chromosome : testdata) {
+			for (IntegerGene gene : chromosome) {
+				if (dataBuilder.length() > 0) {
+					dataBuilder.append(" ");
+				}
+				dataBuilder.append(gene.allele());
+			}
+		}
+		String data = dataBuilder.toString();
 		String[] newtestCase = testSetup.clone();
 
 		for (int i = 0; i < testSetup.length; i++) {
