@@ -17,9 +17,9 @@ import io.jenetics.IntegerGene;
 
 public final class FitnessFunction {
 
-	private double fitness;
+	private TestFitness fitness;
+	private double distance;
 	private RequiredElem required_elements;
-	private int uncoveredElems;
 	private Genotype<IntegerGene> testdata;
 	private int testID;
 	private File filesPath;
@@ -58,9 +58,9 @@ public final class FitnessFunction {
 						Integer.parseInt(threadId.toString()), new Node(nodeId.toString()));
 				ExecutionTrace traceReceive = new ExecutionTrace(0, 0, Integer.parseInt(processId.toString()),
 						Integer.parseInt(threadId.toString()));
-				DistanceElem distance = new DistanceElem(targetSend, traceSend, targetReceive, traceReceive, testID);
+				DistanceElem distanceElem = new DistanceElem(targetSend, traceSend, targetReceive, traceReceive, testID);
 
-				distance.distanceCalculator();
+				distance += distanceElem.distanceCalculator();
 
 			} else {
 				coverage++;
@@ -68,11 +68,11 @@ public final class FitnessFunction {
 			;
 		});
 
-		testdata.setCoverage((coverage / required_elements.getRequired_elements().size()) * 100);
-		testdata.setSync_edge_requirements(required_elements.getRequired_elements().toString());
+		int totalRequiredElements = required_elements.getRequired_elements().size();
+		distance = distance / totalRequiredElements;
 
-		if (uncoveredElems != 0)
-			fitness /= uncoveredElems;
+		fitness = new TestFitness(distance, (coverage / totalRequiredElements) * 100,
+				required_elements.getRequired_elements().toString());
 
 	}
 
@@ -86,20 +86,11 @@ public final class FitnessFunction {
 		valipar.evaluation(testID);
 	}
 
-	public Double getFitness() {
+	public TestFitness getFitness() {
 		System.out.println("Test data:" + testdata + "[Fitness: " + fitness + "]");
-
-		// SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss
-		// z");
-		// Date date = new Date(System.currentTimeMillis());
-		// System.out.println(formatter.format(date));
 
 		return fitness;
 
-	}
-
-	public void setFitness(Double fitness) {
-		this.fitness = fitness;
 	}
 
 	public Genotype<IntegerGene> getTestdata() {

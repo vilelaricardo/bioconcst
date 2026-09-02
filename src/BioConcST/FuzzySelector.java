@@ -6,7 +6,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,17 +17,16 @@ import io.jenetics.Phenotype;
 import io.jenetics.Selector;
 import io.jenetics.util.ISeq;
 import io.jenetics.util.MSeq;
-import io.jenetics.util.RandomRegistry;
 import io.jenetics.util.Seq;
 import net.sourceforge.jFuzzyLogic.FIS;
 
-public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>> implements Selector<G, C> {
+public class FuzzySelector<G extends Gene<?, G>> implements Selector<G, TestFitness> {
 
 	private FIS FIS;
-	private double originality;
 
 	@Override
-	public ISeq<Phenotype<G, C>> select(final Seq<Phenotype<G, C>> population, final int count, final Optimize opt) {
+	public ISeq<Phenotype<G, TestFitness>> select(final Seq<Phenotype<G, TestFitness>> population, final int count,
+			final Optimize opt) {
 		requireNonNull(population, "Population");
 		requireNonNull(opt, "Optimization");
 		if (count < 0) {
@@ -36,11 +34,9 @@ public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>
 					format("Selection count must be greater or equal then zero, but was %d.", count));
 		}
 
-		final MSeq<Phenotype<G, C>> selection;
+		final MSeq<Phenotype<G, TestFitness>> selection;
 		if (count > 0 && !population.isEmpty()) {
 			selection = MSeq.ofLength(count);
-			final Random random = RandomRegistry.random();
-			final int size = population.size();
 
 			List<Survivor> rankedSurvivor = new ArrayList<Survivor>();
 
@@ -63,12 +59,12 @@ public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>
 		return selection.toISeq();
 	}
 
-	private double testDataSuvivor(final Seq<Phenotype<G, C>> population, Phenotype<G, C> testdata) {
+	private double testDataSuvivor(final Seq<Phenotype<G, TestFitness>> population, Phenotype<G, TestFitness> testdata) {
 
 		startFuzzy();
 		FIS.getVariable("originality").setValue(hammingdistance(population, testdata));
-		FIS.getVariable("coverage").setValue(testdata.genotype().getCoverage());
-		FIS.getVariable("fitness").setValue((double) testdata.fitness());
+		FIS.getVariable("coverage").setValue(testdata.fitness().getCoverage());
+		FIS.getVariable("fitness").setValue(testdata.fitness().getDistance());
 
 		FIS.evaluate();
 
@@ -83,25 +79,25 @@ public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>
 		this.FIS = FIS.load("fuzzy/fuzzySelector.FCL");
 	}
 
-	private double hammingdistance(final Seq<Phenotype<G, C>> population, Phenotype testdata) {
+	private double hammingdistance(final Seq<Phenotype<G, TestFitness>> population, Phenotype<G, TestFitness> testdata) {
 		double originality;
 		List<Double> hamming = new ArrayList<Double>();
 		double aux;
 
-		JsonNode syncList = buildSyncList(testdata.genotype().getSync_edge_requirements());
+		JsonNode syncList = buildSyncList(testdata.fitness().getSyncEdgeRequirements());
 
 		for (int i = 0; i < population.size(); i++) {
 			aux = 0;
-			JsonNode syncTest = buildSyncList(population.get(i).genotype().getSync_edge_requirements());
+			JsonNode syncTest = buildSyncList(population.get(i).fitness().getSyncEdgeRequirements());
 
 			for (int j = 0; j < syncList.size(); j++) {
 
 				if (syncList.get(j)!=null && syncTest.get(j)!=null) {
-					
+
 					if (syncTest.get(j)==null) {
 						return 0;
 					}
-					
+
 				if (syncList.get(j).get("state").equals(syncTest.get(j).get("state"))) {
 					aux++;
 				}
@@ -131,20 +127,20 @@ public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>
 
 	class Survivor implements Comparable<Survivor> {
 
-		private Phenotype<G, C> testdata;
+		private Phenotype<G, TestFitness> testdata;
 		private Double survivor;
 
-		public Survivor(Phenotype<G, C> testdata, Double survivor) {
+		public Survivor(Phenotype<G, TestFitness> testdata, Double survivor) {
 			super();
 			this.testdata = testdata;
 			this.survivor = survivor;
 		}
 
-		public Phenotype<G, C> getTestdata() {
+		public Phenotype<G, TestFitness> getTestdata() {
 			return testdata;
 		}
 
-		public void setTestdata(Phenotype<G, C> testdata) {
+		public void setTestdata(Phenotype<G, TestFitness> testdata) {
 			this.testdata = testdata;
 		}
 
@@ -157,7 +153,7 @@ public class FuzzySelector<G extends Gene<?, G>, C extends Comparable<? super C>
 		}
 
 		@Override
-		public int compareTo(FuzzySelector<G, C>.Survivor anotherSurvivor) {
+		public int compareTo(FuzzySelector<G>.Survivor anotherSurvivor) {
 
 			return this.survivor.compareTo(anotherSurvivor.getSurvivor());
 		}

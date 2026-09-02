@@ -40,6 +40,11 @@ public class DistanceElem {
 				+ "/execution" + execution + "/traces/p" + process + "t" + thread + ".log");
 
 		ArrayList<String> traceList = new ArrayList<String>();
+		if (trace == null) {
+			// process never produced a trace (e.g. crashed before running) - treat as
+			// having executed nothing, which yields maximum distance below.
+			return traceList;
+		}
 		Matcher matcher = Pattern.compile("NodeEvent,<([\\S\\s]*?)\\^\\{").matcher(trace);
 		while (matcher.find()) {
 			traceList.add(matcher.group().replace("^{", "").replace("NodeEvent,<", ""));

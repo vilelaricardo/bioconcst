@@ -100,17 +100,8 @@ public final class ValiParRun {
 		}
 	}
 
-	public static synchronized void execution(int testID) {
-
-		try {
-			Process process = new ProcessBuilder("valipar", "exec", "-t", "0", "-l", "10000")
-					.directory(new File("./experiment/test" + testID)).start();
-			process.waitFor();
-
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
-		}
-
+	public static void execution(int testID) {
+		ValiParContainerPool.getInstance(new File("./experiment")).execute(testID);
 	}
 
 	public void instrumentation(int testID, ProcessBuilder instrumentation, File filesPath) {

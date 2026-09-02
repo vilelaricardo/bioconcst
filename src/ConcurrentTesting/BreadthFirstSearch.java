@@ -48,7 +48,7 @@ public class BreadthFirstSearch {
 				}
 			}
 
-			for (int i = 0; i < gfc.adjacent.get(nodeId).size(); i++) {
+			for (int i = 1; i < gfc.adjacent.get(nodeId).size(); i++) {
 				Node key = gfc.adjacent.get(nodeId).get(i);
 				if (!key.isVisited()) {
 					key.setVisited(true);

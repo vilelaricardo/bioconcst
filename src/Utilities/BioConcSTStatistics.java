@@ -21,6 +21,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbookFactory;
 
+import BioConcST.TestFitness;
 import io.jenetics.IntegerGene;
 import io.jenetics.Phenotype;
 import io.jenetics.Selector;
@@ -28,16 +29,16 @@ import io.jenetics.util.ISeq;
 
 public class BioConcSTStatistics {
 
-	private List<ISeq<Phenotype<IntegerGene, Double>>> bestList;
+	private List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestList;
 	private List<ArrayList<Double>> coverageList;
-	private Selector<IntegerGene, Double> survivorsSelector;
-	private List<ISeq<Phenotype<IntegerGene, Double>>> bestPop;
+	private Selector<IntegerGene, TestFitness> survivorsSelector;
+	private List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPop;
 	private int generations;
 	private int executions;
 	private int populationSize;
-	public BioConcSTStatistics(List<ISeq<Phenotype<IntegerGene, Double>>> bestList,
-			List<ISeq<Phenotype<IntegerGene, Double>>> bestPop, List<ArrayList<Double>> coverageList,
-			Selector<IntegerGene, Double> survivorsSelector, int generations, int executions, int populationSize) {
+	public BioConcSTStatistics(List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestList,
+			List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPop, List<ArrayList<Double>> coverageList,
+			Selector<IntegerGene, TestFitness> survivorsSelector, int generations, int executions, int populationSize) {
 
 		this.bestList = bestList;
 		this.coverageList = coverageList;
