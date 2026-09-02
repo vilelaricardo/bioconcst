@@ -96,13 +96,23 @@ public class BioConcSTCore {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(threadExecutors);
 
+		// Dedup runs first, hall-of-fame injection second - if the order were
+		// reversed, toUniquePopulation() could treat a freshly-injected champion
+		// as a duplicate and regenerate it away, undoing the guarantee.
+		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> uniqueInterceptor = EvolutionResult
+				.toUniquePopulation();
+		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> hallOfFameInterceptor = HallOfFame
+				.interceptor();
+		final io.jenetics.engine.EvolutionInterceptor<IntegerGene, TestFitness> combinedInterceptor = io.jenetics.engine.EvolutionInterceptor
+				.ofAfter(result -> hallOfFameInterceptor.after(uniqueInterceptor.after(result)));
+
 		final Engine<IntegerGene, TestFitness> engine = Engine.builder(PROBLEM).minimizing()
 				.survivorsFraction(suvivorsFraction).offspringFraction(offspringFraction)
 				.survivorsSelector(survivorsSelector).offspringSelector(offspringSelector)
 				.populationSize(populationSize)
 				.alterers(new SwapMutator<>(mutationRate), new SinglePointCrossover<>(crossoverRate)).executor(executor)
 				// .executor((Executor) Runnable::run) //Sequential executor
-				.interceptor(EvolutionResult.toUniquePopulation()).build();
+				.interceptor(combinedInterceptor).build();
 
 		final EvolutionStatistics<TestFitness, ?> statistics = EvolutionStatistics.ofNumber();
 
