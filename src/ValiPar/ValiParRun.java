@@ -7,11 +7,14 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.FileFileFilter;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 
+import io.jenetics.Chromosome;
 import io.jenetics.Genotype;
 import io.jenetics.IntegerGene;
 
@@ -107,20 +110,26 @@ public final class ValiParRun {
 		// benchmark uses one length-1 chromosome per argument position (see
 		// BioConcSTCore's per-argument ArgumentRange handling) - so every
 		// chromosome's genes are concatenated here instead.
-		StringBuilder dataBuilder = new StringBuilder();
-		for (io.jenetics.Chromosome<IntegerGene> chromosome : testdata) {
+		List<String> geneValues = new ArrayList<>();
+		for (Chromosome<IntegerGene> chromosome : testdata) {
 			for (IntegerGene gene : chromosome) {
-				if (dataBuilder.length() > 0) {
-					dataBuilder.append(" ");
-				}
-				dataBuilder.append(gene.allele());
+				geneValues.add(String.valueOf(gene.allele()));
 			}
 		}
-		String data = dataBuilder.toString();
+		String data = String.join(" ", geneValues);
 		String[] newtestCase = testSetup.clone();
 
 		for (int i = 0; i < testSetup.length; i++) {
-			newtestCase[i] = testSetup[i].replace("TESTDATA", data);
+			String arg = testSetup[i];
+			// TESTDATA<geneIndex> routes a single gene to one process's
+			// argument string (e.g. two independent processes each getting
+			// their own evolved value); checked before the plain TESTDATA
+			// substitution so it isn't swallowed by it. Plain TESTDATA still
+			// substitutes every gene, space-joined, as before.
+			for (int g = 0; g < geneValues.size(); g++) {
+				arg = arg.replace("TESTDATA" + g, geneValues.get(g));
+			}
+			newtestCase[i] = arg.replace("TESTDATA", data);
 		}
 
 		try {
