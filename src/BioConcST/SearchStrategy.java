@@ -19,6 +19,13 @@ public interface SearchStrategy {
 		if (name == null || name.equalsIgnoreCase("GA")) {
 			return new GeneticAlgorithmStrategy();
 		}
+		// Same Engine/FuzzySelector/HallOfFame wiring, but against an in-memory
+		// stub instead of the real (expensive) ValiPar-backed evaluation - for
+		// cheaply tuning GA hyperparameters/fuzzy calibration before spending
+		// real evaluations confirming it transfers. See StubFitnessFunction.
+		if (name.equalsIgnoreCase("GA_STUB")) {
+			return new StubGeneticAlgorithmStrategy();
+		}
 		throw new IllegalArgumentException("Unknown strategy: " + name);
 	}
 }
