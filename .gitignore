@@ -1,6 +1,10 @@
 /target/
 /experiment/
+/results/
 *.xlsx
 
 # ValiPar is an internal/unreleased tool - never publish it in this repo.
 /docker/valipar/vendor/
+
+# Reference papers for the LLM experiment - copyrighted PDFs, local reading only.
+/papers/
