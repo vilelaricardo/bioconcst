@@ -17,7 +17,7 @@
     ]
   },
   "ga": {
-    "populationSize": 6,
+    "populationSize": 16,
     "generations": 100,
     "mutationRate": 0.1,
     "crossoverRate": 0.6,
