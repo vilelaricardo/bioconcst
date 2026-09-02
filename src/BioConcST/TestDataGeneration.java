@@ -14,89 +14,70 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.poi.EncryptedDocumentException;
 
-import Utilities.BioConcSTStatistics;
-import io.jenetics.IntegerGene;
-import io.jenetics.Phenotype;
-import io.jenetics.Selector;
-import io.jenetics.util.ISeq;
-
+/**
+ * CLI entry point for running an experiment described by a JSON config
+ * (default: config/gcdmaster-ga.json, or pass a path as args[0]). The
+ * benchmark, GA hyperparameters, and search strategy all come from that
+ * file - none of it is hardcoded here - so pointing this at a different
+ * benchmark, or (once added) switching "strategy" to the LLM-hint approach,
+ * doesn't require touching this class.
+ */
 public class TestDataGeneration {
 
-	// Genetic Algorithm Setup
-	private static final int populationSize = 6;
-	private static final int generations = 100;
-	private static final double mutationRate = 0.1;
-	private static final double crossoverRate = 0.6;
-	private static final double suvivorsFraction = 0.1;
-	private static final double offspringFraction = 0.9;
-	private static final int executions = 20;
+	public static void main(String[] args) throws IOException {
+		String configPath = args.length > 0 ? args[0] : "config/gcdmaster-ga.json";
+		ExperimentConfig config = ExperimentConfig.load(configPath);
 
-	// Number of arguments of System under Testing
-	private static final int argumentsLenght = 3;
+		File filesPath = new File(config.benchmark.path);
+		ProcessBuilder instrumentation = buildInstrumentation(config.benchmark);
+		String[] testSetup = buildTestSetup(config.benchmark);
+		SearchStrategy strategy = SearchStrategy.resolve(config.strategy);
 
-	private static final Selector<IntegerGene, TestFitness> survivorsSelector = new FuzzySelector<IntegerGene>();
-	private static final Selector<IntegerGene, TestFitness> offspringSelector = new FuzzySelector<IntegerGene>();
+		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
 
-	// Range Gene
-	private static final int min = 0;
-	private static final int max = 100;
+		for (int i = 0; i < config.ga.executions; i++) {
 
-	// Number of executor threads
-	private static final int threadExecutors = 25;
+			System.out.println("Starting: " + formatter.format(new Date(System.currentTimeMillis())));
 
-	// List best of repetitions
-	private static List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestList = new ArrayList<ISeq<Phenotype<IntegerGene, TestFitness>>>();
-	private static List<ArrayList<Double>> coverageList = new ArrayList<ArrayList<Double>>();
-	private static List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPop = new ArrayList<ISeq<Phenotype<IntegerGene, TestFitness>>>();
+			SolutionResult result = strategy.run(config, filesPath, instrumentation, testSetup);
 
-	public static void main(String[] args) throws EncryptedDocumentException, IOException {
+			ResultsWriter.writeGenerations(result, config.output.directory,
+					config.output.runName + "-execution" + i + ".csv");
 
-		BioConcSTCore bioCore = null;
-		for (int i = 0; i < executions; i++) {
+			System.out.println("Ending: " + formatter.format(new Date(System.currentTimeMillis())));
 
-			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
-			Date date = new Date(System.currentTimeMillis());
-			System.out.println("Starting: " + formatter.format(date));
-
-			// BioConcST Object
-			bioCore = new BioConcSTCore(populationSize, generations, mutationRate, crossoverRate, min, max,
-					suvivorsFraction, offspringFraction, argumentsLenght, threadExecutors, survivorsSelector,
-					offspringSelector);
-
-			// System under testing configuration
-			File filesPath = new File("./benchmark/message_passing/005_parallel_gcd");
-			ProcessBuilder instrumentation = new ProcessBuilder("valipar", "inst", "-t", "-l", "-p", "GcdMaster",
-					"GcdSlave", "GcdSlave", "GcdSlave", "-f", "GcdMaster.class", "GcdSlave.class", "-i",
-					"HelperClass.class");
-
-			String[] testSetup = { "valipar", "testcase", "-n", "-p", "0", "GcdMaster", "TESTDATA", "-p", "1",
-					"GcdSlave", "1", "-p", "2", "GcdSlave", "2", "-p", "3", "GcdSlave", "3" };
-
-			// Call BioConcST Evolution
-			bioCore.generatorEvolution(filesPath, instrumentation, testSetup);
-
-			
-			bestList.add(bioCore.getSolutionResults().getBestList());
-			coverageList.add((ArrayList<Double>) bioCore.getSolutionResults().getSyncCoverage());
-			bestPop.add(bioCore.getSolutionResults().getBestPop());
-			date = new Date(System.currentTimeMillis());
-			System.out.println("Ending: " + formatter.format(date));
-
-			compressResults(i, offspringSelector);
-
+			compressResults(i, config.output.runName);
 		}
 
-		BioConcSTStatistics statistics = new BioConcSTStatistics(bestList, bestPop, coverageList, offspringSelector,
-				generations, executions, populationSize);
-
-		statistics.store();
 		System.exit(0);
 	}
 
-	public static void compressResults(int execution, Selector<IntegerGene, TestFitness> selector) {
-		File file = new File("./" + selector.toString().replaceAll("Selector.*$", ""));
+	private static ProcessBuilder buildInstrumentation(BenchmarkConfig benchmark) {
+		List<String> command = new ArrayList<>(List.of("valipar", "inst", "-t", "-l", "-p"));
+		command.addAll(benchmark.processes);
+		command.add("-f");
+		command.addAll(benchmark.parseFiles);
+		if (benchmark.ignoreFiles != null && !benchmark.ignoreFiles.isEmpty()) {
+			command.add("-i");
+			command.addAll(benchmark.ignoreFiles);
+		}
+		return new ProcessBuilder(command);
+	}
+
+	private static String[] buildTestSetup(BenchmarkConfig benchmark) {
+		List<String> command = new ArrayList<>(List.of("valipar", "testcase", "-n"));
+		for (ProcessSpec process : benchmark.testSetupProcesses) {
+			command.add("-p");
+			command.add(String.valueOf(process.id));
+			command.add(process.className);
+			command.add(process.args);
+		}
+		return command.toArray(new String[0]);
+	}
+
+	public static void compressResults(int execution, String runName) {
+		File file = new File("./" + runName);
 		if (!file.exists()) {
 			try {
 				FileUtils.forceMkdir(file);
@@ -127,8 +108,6 @@ public class TestDataGeneration {
 	}
 
 	private static TarArchiveOutputStream getTarArchiveOutputStream(String name) throws IOException {
-		// TarArchiveOutputStream taos = new TarArchiveOutputStream(new
-		// FileOutputStream(name));
 		TarArchiveOutputStream taos = new TarArchiveOutputStream(
 				new GzipCompressorOutputStream(new FileOutputStream(name)));
 		// TAR has an 8 gig file limit by default, this gets around that
