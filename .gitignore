@@ -1,1 +1,6 @@
 /target/
+/experiment/
+*.xlsx
+
+# ValiPar is an internal/unreleased tool - never publish it in this repo.
+/docker/valipar/vendor/

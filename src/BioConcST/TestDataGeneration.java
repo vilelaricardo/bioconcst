@@ -18,7 +18,6 @@ import org.apache.poi.EncryptedDocumentException;
 
 import Utilities.BioConcSTStatistics;
 import io.jenetics.IntegerGene;
-import io.jenetics.MonteCarloSelector;
 import io.jenetics.Phenotype;
 import io.jenetics.Selector;
 import io.jenetics.util.ISeq;
@@ -37,20 +36,20 @@ public class TestDataGeneration {
 	// Number of arguments of System under Testing
 	private static final int argumentsLenght = 3;
 
-	private static final Selector<IntegerGene, Double> survivorsSelector = new FuzzySelector<IntegerGene, Double>();
-	private static final Selector<IntegerGene, Double> offspringSelector = new FuzzySelector<IntegerGene, Double>();
+	private static final Selector<IntegerGene, TestFitness> survivorsSelector = new FuzzySelector<IntegerGene>();
+	private static final Selector<IntegerGene, TestFitness> offspringSelector = new FuzzySelector<IntegerGene>();
 
 	// Range Gene
-	private static final int min = -100000;
-	private static final int max = 100000;
+	private static final int min = 0;
+	private static final int max = 100;
 
 	// Number of executor threads
 	private static final int threadExecutors = 25;
 
 	// List best of repetitions
-	private static List<ISeq<Phenotype<IntegerGene, Double>>> bestList = new ArrayList<ISeq<Phenotype<IntegerGene, Double>>>();
+	private static List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestList = new ArrayList<ISeq<Phenotype<IntegerGene, TestFitness>>>();
 	private static List<ArrayList<Double>> coverageList = new ArrayList<ArrayList<Double>>();
-	private static List<ISeq<Phenotype<IntegerGene, Double>>> bestPop = new ArrayList<ISeq<Phenotype<IntegerGene, Double>>>();
+	private static List<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPop = new ArrayList<ISeq<Phenotype<IntegerGene, TestFitness>>>();
 
 	public static void main(String[] args) throws EncryptedDocumentException, IOException {
 
@@ -67,7 +66,7 @@ public class TestDataGeneration {
 					offspringSelector);
 
 			// System under testing configuration
-			File filesPath = new File("./");
+			File filesPath = new File("./benchmark/message_passing/005_parallel_gcd");
 			ProcessBuilder instrumentation = new ProcessBuilder("valipar", "inst", "-t", "-l", "-p", "GcdMaster",
 					"GcdSlave", "GcdSlave", "GcdSlave", "-f", "GcdMaster.class", "GcdSlave.class", "-i",
 					"HelperClass.class");
@@ -96,7 +95,7 @@ public class TestDataGeneration {
 		System.exit(0);
 	}
 
-	public static void compressResults(int execution, Selector<IntegerGene, Double> selector) {
+	public static void compressResults(int execution, Selector<IntegerGene, TestFitness> selector) {
 		File file = new File("./" + selector.toString().replaceAll("Selector.*$", ""));
 		if (!file.exists()) {
 			try {

@@ -12,7 +12,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.8.0</version>
 				<configuration>
-					<release>11</release>
+					<release>25</release>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -66,6 +66,21 @@
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-csv</artifactId>
 			<version>1.8</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.jenetics</groupId>
+			<artifactId>jenetics</artifactId>
+			<version>9.0.0</version>
+		</dependency>
+
+		<!-- Vendored locally in jars/, not published to a Maven repository -->
+		<dependency>
+			<groupId>net.sourceforge</groupId>
+			<artifactId>jFuzzyLogic</artifactId>
+			<version>3.3</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/jars/jFuzzyLogic.jar</systemPath>
 		</dependency>
 	</dependencies>
 
