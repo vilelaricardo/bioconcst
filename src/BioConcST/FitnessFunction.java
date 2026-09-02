@@ -21,13 +21,15 @@ public final class FitnessFunction {
 	private Genotype<IntegerGene> testdata;
 	private int testID;
 	private String[] testSetup;
+	private int execTimeLimitMs;
 	private Double coverage;
 
-	public FitnessFunction(Genotype<IntegerGene> testdata, int testID, String[] testSetup) {
+	public FitnessFunction(Genotype<IntegerGene> testdata, int testID, String[] testSetup, int execTimeLimitMs) {
 
 		this.testdata = testdata;
 		this.testID = testID;
 		this.testSetup = testSetup;
+		this.execTimeLimitMs = execTimeLimitMs;
 		this.coverage = 0.0;
 		newValiParInstance();
 
@@ -73,7 +75,7 @@ public final class FitnessFunction {
 		ValiParRun valipar = new ValiParRun();
 		valipar.createProjectFromBaseline(testID);
 		valipar.newTestCase(testdata, testID, testSetup);
-		ValiParRun.execution(testID);
+		ValiParRun.execution(testID, execTimeLimitMs);
 		valipar.evaluation(testID);
 	}
 

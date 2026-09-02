@@ -14,12 +14,12 @@
     "argumentsLength": 3
   },
   "ga": {
-    "populationSize": 6,
+    "populationSize": 16,
     "generations": 100,
     "mutationRate": 0.1,
     "crossoverRate": 0.6,
-    "survivorsFraction": 0.1,
-    "offspringFraction": 0.9,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
     "min": 0,
     "max": 100,
     "threadExecutors": 25,

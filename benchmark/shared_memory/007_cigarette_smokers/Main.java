@@ -60,9 +60,9 @@ public class Main {
                                 
         int choice1 = 2;
         int choice2 = 1;
-        
-          //  choice1 = Integer.parseInt(args[0]); // 0 ou 1 ou 2  --- não podem ser iguais
-          //  choice2 = Integer.parseInt(args[1]); // 0 ou 1 ou 2 --- não podem ser iguais
+
+            choice1 = Integer.parseInt(args[0]); // 0 ou 1 ou 2  --- não podem ser iguais
+            choice2 = Integer.parseInt(args[1]); // 0 ou 1 ou 2 --- não podem ser iguais
 
             
  if((choice1>=0) && (choice1<=2)){  

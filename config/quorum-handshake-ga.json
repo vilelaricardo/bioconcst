@@ -1,0 +1,36 @@
+{
+  "benchmark": {
+    "name": "quorum-handshake",
+    "path": "./benchmark/synthetic/001_quorum_handshake",
+    "processes": ["Coordinator", "Peer", "Peer"],
+    "parseFiles": ["Coordinator.class", "Peer.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Coordinator", "args": "" },
+      { "id": 1, "className": "Peer", "args": "1 TESTDATA0" },
+      { "id": 2, "className": "Peer", "args": "2 TESTDATA1" }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      { "min": 0, "max": 1000 },
+      { "min": 0, "max": 1000 }
+    ]
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 100,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 25,
+    "executions": 1
+  },
+  "strategy": "GA",
+  "output": {
+    "directory": "./results",
+    "runName": "quorum-handshake-ga-baseline"
+  }
+}

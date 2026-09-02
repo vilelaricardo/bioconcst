@@ -34,6 +34,7 @@ public class BioConcSTCore {
 	private double suvivorsFraction;
 	private double offspringFraction;
 	private int argumentsLenght;
+	private List<ArgumentRange> argumentRanges;
 	private int threadExecutors;
 	private static int iterator = 0;
 	private Selector<IntegerGene, TestFitness> survivorsSelector;
@@ -43,9 +44,12 @@ public class BioConcSTCore {
 	private SolutionResult solutionResults;
 
 	private static String[] testSetup;
+	private int execTimeLimitMs;
+	private static int currentExecTimeLimitMs;
 
 	public BioConcSTCore(int populationSize, int generations, double mutationRate, double crossoverRate, int min,
-			int max, double suvivorsFraction, double offspringFraction, int argumentsLenght, int threadExecutors,
+			int max, double suvivorsFraction, double offspringFraction, int argumentsLenght,
+			List<ArgumentRange> argumentRanges, int threadExecutors, int execTimeLimitMs,
 			Selector<IntegerGene, TestFitness> survivorsSelector, Selector<IntegerGene, TestFitness> offspringSelector) {
 		super();
 		this.populationSize = populationSize;
@@ -60,13 +64,28 @@ public class BioConcSTCore {
 		this.survivorsSelector = survivorsSelector;
 		this.offspringSelector = offspringSelector;
 		this.argumentsLenght = argumentsLenght;
+		this.argumentRanges = argumentRanges;
+		this.execTimeLimitMs = execTimeLimitMs;
 	}
 
 	public SolutionResult generatorEvolution(File filesPath, ProcessBuilder instrumentation, String[] testSetup) {
 
 		iterator = 0;
 		this.testSetup = testSetup;
-		GENOTYPE = Genotype.of(IntegerChromosome.of(min, max, argumentsLenght));
+		currentExecTimeLimitMs = this.execTimeLimitMs;
+		if (argumentRanges != null && !argumentRanges.isEmpty()) {
+			// Jenetics requires every gene within one IntegerChromosome to share
+			// the same [min,max) range, so a heterogeneous argument vector is
+			// modeled as one length-1 chromosome per position instead of a
+			// single length-N chromosome.
+			IntegerChromosome[] chromosomes = new IntegerChromosome[argumentRanges.size()];
+			for (int i = 0; i < argumentRanges.size(); i++) {
+				chromosomes[i] = IntegerChromosome.of(argumentRanges.get(i).min, argumentRanges.get(i).max, 1);
+			}
+			GENOTYPE = Genotype.of(chromosomes[0], java.util.Arrays.copyOfRange(chromosomes, 1, chromosomes.length));
+		} else {
+			GENOTYPE = Genotype.of(IntegerChromosome.of(min, max, argumentsLenght));
+		}
 		PROBLEM = Problem.of(BioConcSTCore::fitness, Codec.of(GENOTYPE, gt -> gt));
 
 		ValiParRun valipar = new ValiParRun();
@@ -87,10 +106,13 @@ public class BioConcSTCore {
 
 		final EvolutionStatistics<TestFitness, ?> statistics = EvolutionStatistics.ofNumber();
 
-		// Tracks, generation by generation, the coverage of the best individual and
-		// the population from whichever generation achieved the best coverage so far
-		// - this replaces the "sync_coverage"/"bestpop" fields that used to live on a
-		// patched Engine (see FuzzySelector.java / SolutionResult.java for the rest).
+		// Tracks, generation by generation, the coverage of the population as a
+		// whole (the union of what every living individual covers - what the tool
+		// actually delivers as a test suite, not any single individual's own
+		// coverage) and the population from whichever generation achieved the best
+		// coverage so far - this replaces the "sync_coverage"/"bestpop" fields that
+		// used to live on a patched Engine (see FuzzySelector.java / SolutionResult.java
+		// for the rest).
 		final double[] bestCoverageSoFar = { -1.0 };
 		final List<Double> syncCoverageHistory = new ArrayList<>();
 		final AtomicReference<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPopulation = new AtomicReference<>(
@@ -98,7 +120,7 @@ public class BioConcSTCore {
 
 		final ISeq<Phenotype<IntegerGene, TestFitness>> results = engine.stream()
 				.limit(Limits.byFixedGeneration(generations)).peek(statistics).peek(result -> {
-					double genCoverage = result.bestPhenotype().fitness().getCoverage();
+					double genCoverage = SuiteCoverage.unionCoveragePercent(result.population());
 					syncCoverageHistory.add(genCoverage);
 					if (genCoverage > bestCoverageSoFar[0]) {
 						bestCoverageSoFar[0] = genCoverage;
@@ -121,7 +143,7 @@ public class BioConcSTCore {
 
 	public static TestFitness fitness(Genotype<IntegerGene> x) {
 
-		return new FitnessFunction(x, increment(), testSetup).getFitness();
+		return new FitnessFunction(x, increment(), testSetup, currentExecTimeLimitMs).getFitness();
 
 	}
 

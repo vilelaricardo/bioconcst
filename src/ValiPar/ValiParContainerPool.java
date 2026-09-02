@@ -28,14 +28,36 @@ public final class ValiParContainerPool {
 	private final BlockingQueue<String> idleWorkers;
 
 	private ValiParContainerPool(File experimentDir) {
-		this.size = Runtime.getRuntime().availableProcessors();
+		this.size = resolvePoolSize();
 		this.idleWorkers = new ArrayBlockingQueue<>(size);
 		startWorkers(experimentDir.getAbsoluteFile());
 		Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 	}
 
+	// Defaults to the core count (a reasonable choice for CPU-bound benchmarks),
+	// but that's not always right: benchmarks that spend most of their time
+	// blocked on socket I/O rather than computing can benefit from more workers
+	// than there are physical cores, while tightly-threaded ones (see jacobi)
+	// get worse under that same oversubscription. VALIPAR_POOL_SIZE lets a run
+	// override the default instead of guessing at a one-size-fits-all number.
+	private static int resolvePoolSize() {
+		String override = System.getenv("VALIPAR_POOL_SIZE");
+		if (override != null && !override.isBlank()) {
+			try {
+				int parsed = Integer.parseInt(override.trim());
+				if (parsed > 0) {
+					return parsed;
+				}
+			} catch (NumberFormatException e) {
+				// fall through to the default below
+			}
+		}
+		return Runtime.getRuntime().availableProcessors();
+	}
+
 	// experimentDir is only used to start the pool on the first call; later
-	// calls return the already-running pool.
+	// calls return the already-running pool - until reset() tears it down,
+	// which a new ValiParRun.newExperiment() call requires (see reset()).
 	public static ValiParContainerPool getInstance(File experimentDir) {
 		if (instance == null) {
 			synchronized (ValiParContainerPool.class) {
@@ -45,6 +67,21 @@ public final class ValiParContainerPool {
 			}
 		}
 		return instance;
+	}
+
+	// A running pool's containers are bind-mounted to a specific "./experiment"
+	// directory. ValiParRun.newExperiment() deletes and recreates that
+	// directory - harmless for a single-benchmark run (the pool doesn't exist
+	// yet at that point) but, in a multi-benchmark suite run, the second and
+	// later benchmarks would otherwise reuse containers still mounted to the
+	// now-stale directory instance, silently producing empty traces. Called
+	// from newExperiment() itself so every benchmark in a suite gets a pool
+	// mounted to its own fresh directory.
+	public static synchronized void reset() {
+		if (instance != null) {
+			instance.shutdown();
+			instance = null;
+		}
 	}
 
 	private void startWorkers(File experimentDir) {
@@ -62,7 +99,7 @@ public final class ValiParContainerPool {
 		}
 	}
 
-	public void execute(int testID) {
+	public void execute(int testID, int execTimeLimitMs) {
 		String worker;
 		try {
 			worker = idleWorkers.take();
@@ -72,7 +109,7 @@ public final class ValiParContainerPool {
 		}
 		try {
 			Process process = new ProcessBuilder("docker", "exec", "-w", "/work/test" + testID, worker, "valipar",
-					"exec", "-t", "0", "-l", "10000").start();
+					"exec", "-t", "0", "-l", String.valueOf(execTimeLimitMs)).start();
 			process.waitFor();
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
