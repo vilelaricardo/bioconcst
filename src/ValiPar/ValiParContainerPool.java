@@ -28,10 +28,31 @@ public final class ValiParContainerPool {
 	private final BlockingQueue<String> idleWorkers;
 
 	private ValiParContainerPool(File experimentDir) {
-		this.size = Runtime.getRuntime().availableProcessors();
+		this.size = resolvePoolSize();
 		this.idleWorkers = new ArrayBlockingQueue<>(size);
 		startWorkers(experimentDir.getAbsoluteFile());
 		Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+	}
+
+	// Defaults to the core count (a reasonable choice for CPU-bound benchmarks),
+	// but that's not always right: benchmarks that spend most of their time
+	// blocked on socket I/O rather than computing can benefit from more workers
+	// than there are physical cores, while tightly-threaded ones (see jacobi)
+	// get worse under that same oversubscription. VALIPAR_POOL_SIZE lets a run
+	// override the default instead of guessing at a one-size-fits-all number.
+	private static int resolvePoolSize() {
+		String override = System.getenv("VALIPAR_POOL_SIZE");
+		if (override != null && !override.isBlank()) {
+			try {
+				int parsed = Integer.parseInt(override.trim());
+				if (parsed > 0) {
+					return parsed;
+				}
+			} catch (NumberFormatException e) {
+				// fall through to the default below
+			}
+		}
+		return Runtime.getRuntime().availableProcessors();
 	}
 
 	// experimentDir is only used to start the pool on the first call; later
