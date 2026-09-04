@@ -7,6 +7,12 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
+		<!-- Not src/test/java: sourceDirectory above is the flat "src" dir
+		     itself (not src/main/java), so anything nested under src/ - like
+		     the Maven-standard src/test/java - gets swept into the MAIN
+		     compile too. A sibling "test" dir mirrors src/'s own flat
+		     per-package layout instead. -->
+		<testSourceDirectory>test</testSourceDirectory>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -14,6 +20,10 @@
 				<configuration>
 					<release>25</release>
 				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.4</version>
 			</plugin>
 		</plugins>
 	</build>
@@ -107,6 +117,14 @@
 			<version>3.3</version>
 			<scope>system</scope>
 			<systemPath>${project.basedir}/jars/jFuzzyLogic.jar</systemPath>
+		</dependency>
+
+		<!-- Test-only: characterization tests for CoverageInst (src/test/java) -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>5.11.0</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
