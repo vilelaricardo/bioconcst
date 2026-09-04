@@ -183,6 +183,62 @@ class ClassInstrumenterTest {
 	}
 
 	@Test
+	void injectsCyclicBarrierHookWithoutCorruptingTheRealArrivalIndex() throws Exception {
+		// Regression test for the other stack-manipulation hook (alongside
+		// DatagramChannel#send): await()'s original int arrival-index return
+		// value sits under the barrier reference on the stack after the
+		// real call - a SWAP brings the saved barrier ref back on top so
+		// atBarrier gets the reference (not the int), while the int stays
+		// correctly positioned underneath for the surrounding code to use.
+		List<String> calls = runAndGetCalls("BarrierFixture", """
+				import java.util.concurrent.CyclicBarrier;
+
+				public class BarrierFixture {
+				    public static void main(String[] args) throws Exception {
+				        CyclicBarrier barrier = new CyclicBarrier(1);
+				        int arrivalIndex = barrier.await();
+				        if (arrivalIndex != 0) {
+				            throw new AssertionError("expected the real await()'s int result (arrival index 0 for a "
+				                    + "single-party barrier) to survive instrumentation, got: " + arrivalIndex);
+				        }
+				    }
+				}
+				""");
+
+		assertEquals(List.of("atBarrier:BarrierFixture#main:0"), calls);
+	}
+
+	@Test
+	void injectsLockHooksThroughTheInterfaceTypeAndPreservesRealMutualExclusion() throws Exception {
+		// Regression test for the exact-owner scope limit: a field declared
+		// as the Lock INTERFACE (INVOKEINTERFACE dispatch) must fire the
+		// same hooks as a concrete ReentrantLock-typed field would
+		// (INVOKEVIRTUAL) - ClassScannerTest already proved both are
+		// discovered statically; this proves the injected calls actually
+		// execute correctly at runtime for the interface-dispatched case too.
+		List<String> calls = runAndGetCalls("LockFixture", """
+				import java.util.concurrent.locks.Lock;
+				import java.util.concurrent.locks.ReentrantLock;
+
+				public class LockFixture {
+				    public static void main(String[] args) {
+				        Lock lock = new ReentrantLock();
+				        lock.lock();
+				        int x = 1 + 1;
+				        lock.unlock();
+				        if (x != 2) {
+				            throw new AssertionError("expected real lock/unlock to leave normal execution untouched, got x=" + x);
+				        }
+				    }
+				}
+				""");
+
+		assertEquals(
+				List.of("afterSemaphoreAcquire:LockFixture#main:0", "beforeSemaphoreRelease:LockFixture#main:1"),
+				calls);
+	}
+
+	@Test
 	void aProcessWithNoRecognizedPrimitivesInvokesNoHooksAtAll() throws Exception {
 		List<String> calls = runAndGetCalls("Plain", """
 				public class Plain {
