@@ -26,6 +26,15 @@ public interface SearchStrategy {
 		if (name.equalsIgnoreCase("GA_STUB")) {
 			return new StubGeneticAlgorithmStrategy();
 		}
+		// Same wiring again, but against a real native execution instrumented
+		// by CoverageInst instead of ValiPar - see CoverageInstStrategy's own
+		// javadoc for why (ValiPar's static analysis structurally
+		// over-generates required sync edges for some of our synthetic
+		// benchmarks). Any benchmark can use this as long as its config
+		// declares a "coverageInst" block - see CoverageInstConfig.
+		if (name.equalsIgnoreCase("GA_COVINST")) {
+			return new CoverageInstStrategy();
+		}
 		throw new IllegalArgumentException("Unknown strategy: " + name);
 	}
 }

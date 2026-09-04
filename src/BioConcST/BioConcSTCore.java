@@ -11,6 +11,7 @@ import ValiPar.ValiParRun;
 import io.jenetics.Genotype;
 import io.jenetics.IntegerChromosome;
 import io.jenetics.IntegerGene;
+import io.jenetics.Mutator;
 import io.jenetics.Phenotype;
 import io.jenetics.Selector;
 import io.jenetics.SinglePointCrossover;
@@ -118,7 +119,24 @@ public class BioConcSTCore {
 				.survivorsFraction(suvivorsFraction).offspringFraction(offspringFraction)
 				.survivorsSelector(survivorsSelector).offspringSelector(offspringSelector)
 				.populationSize(populationSize)
-				.alterers(new SwapMutator<>(mutationRate), new SinglePointCrossover<>(crossoverRate)).executor(executor)
+				// SwapMutator alone is a documented no-op on any length-1
+				// chromosome (Jenetics' own source: SwapMutator.mutate()
+				// short-circuits to "0 mutations" whenever
+				// chromosome.length() <= 1) - and argumentRanges (used
+				// whenever arguments need per-argument bounds) builds ONE
+				// single-gene chromosome PER ARGUMENT. Without Mutator here,
+				// the population's achievable numeric values were
+				// permanently fixed at whatever random values existed in
+				// the initial population - crossover could only recombine
+				// them, never introduce a new one. Found and fixed in
+				// CoverageInstStrategy/StubGeneticAlgorithmStrategy first
+				// this same investigation; ported here on the user's
+				// explicit request since it's a real, pre-existing gap in
+				// the published pipeline's own search capability, not
+				// something introduced by that work.
+				.alterers(new SwapMutator<>(mutationRate), new Mutator<>(mutationRate),
+						new SinglePointCrossover<>(crossoverRate))
+				.executor(executor)
 				// .executor((Executor) Runnable::run) //Sequential executor
 				.interceptor(combinedInterceptor).build();
 

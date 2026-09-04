@@ -58,6 +58,8 @@ public class TestDataGeneration {
 			SolutionResult result = strategy.run(config, benchmark, filesPath, instrumentation, testSetup);
 
 			ResultsWriter.writeGenerations(result, config.output.directory, runName + "-execution" + i + ".csv");
+			ResultsWriter.writeReplayBundles(result, config.output.directory,
+					runName + "-execution" + i + "-replay.json");
 
 			System.out.println("Ending " + runName + ": " + formatter.format(new Date(System.currentTimeMillis())));
 

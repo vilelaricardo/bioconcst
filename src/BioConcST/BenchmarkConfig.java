@@ -31,4 +31,8 @@ public class BenchmarkConfig {
 	// default.
 	public Integer execTimeLimitMs;
 	public static final int DEFAULT_EXEC_TIME_LIMIT_MS = 10000;
+
+	// Required only for strategy "GA_COVINST" (CoverageInstStrategy) - see
+	// CoverageInstConfig's own javadoc.
+	public CoverageInstConfig coverageInst;
 }

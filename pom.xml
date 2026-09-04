@@ -74,6 +74,32 @@
 			<version>9.0.0</version>
 		</dependency>
 
+		<!-- Bytecode instrumentation for CoverageInst - our own runtime,
+		     ground-truth sync-edge coverage instrument (see CoverageInst
+		     package), used in place of ValiPar for benchmarks whose real
+		     sync-edge topology ValiPar's static analysis structurally
+		     cannot resolve (multi-instance processes, runtime-resolved
+		     socket destinations). -->
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm</artifactId>
+			<version>9.10.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm-commons</artifactId>
+			<version>9.10.1</version>
+		</dependency>
+		<!-- Tree API (ClassNode/MethodNode/InsnList) - needed to resolve jump
+		     labels when computing basic-block boundaries for the PCFG's real
+		     control-flow graph (see BasicBlockInstrumenter); the streaming
+		     visitor API ClassInstrumenter uses doesn't expose that resolution. -->
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm-tree</artifactId>
+			<version>9.10.1</version>
+		</dependency>
+
 		<!-- Vendored locally in jars/, not published to a Maven repository -->
 		<dependency>
 			<groupId>net.sourceforge</groupId>

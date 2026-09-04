@@ -3,6 +3,16 @@
 /results/
 *.xlsx
 
+# Local IDE settings (points at a JDK path specific to this machine) - never shared config.
+/.vscode/
+
+# CoverageInst's own compile/instrument/execution scratch space (see
+# CoverageInstRun) - regenerated fresh on every run, never an artifact to keep.
+/cov-experiment-*/
+/cov-replay-*/
+/pcfg-viz-work-*/
+/pcfg-demo-*/
+
 # ValiPar is an internal/unreleased tool - never publish it in this repo.
 /docker/valipar/vendor/
 

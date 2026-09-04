@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.jenetics.Genotype;
 import io.jenetics.IntegerChromosome;
 import io.jenetics.IntegerGene;
+import io.jenetics.Mutator;
 import io.jenetics.Phenotype;
 import io.jenetics.Selector;
 import io.jenetics.SinglePointCrossover;
@@ -70,7 +71,15 @@ public class StubGeneticAlgorithmStrategy implements SearchStrategy {
 				.survivorsFraction(ga.survivorsFraction).offspringFraction(ga.offspringFraction)
 				.survivorsSelector(survivorsSelector).offspringSelector(offspringSelector)
 				.populationSize(ga.populationSize)
-				.alterers(new SwapMutator<>(ga.mutationRate), new SinglePointCrossover<>(ga.crossoverRate))
+				// SwapMutator alone is a documented no-op on any length-1
+			// chromosome (see CoverageInstStrategy's own comment on this same
+			// line) - benchmark.argumentRanges builds one single-gene
+			// chromosome per argument, so without Mutator here mutation never
+			// actually introduces a new numeric value, only crossover
+			// recombination of whatever the initial random population
+			// happened to contain.
+			.alterers(new SwapMutator<>(ga.mutationRate), new Mutator<>(ga.mutationRate),
+					new SinglePointCrossover<>(ga.crossoverRate))
 				.interceptor(combinedInterceptor).build();
 
 		EvolutionStatistics<TestFitness, ?> statistics = EvolutionStatistics.ofNumber();

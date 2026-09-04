@@ -13,6 +13,10 @@ public class SolutionResult {
 	private EvolutionStatistics<TestFitness, ?> statistics;
 	private ISeq<Phenotype<IntegerGene, TestFitness>> bestList;
 	private ISeq<Phenotype<IntegerGene, TestFitness>> bestPop;
+	// Null for strategies that don't have a replay concept (GA/GA_STUB against
+	// ValiPar or the in-memory stub) - only GA_COVINST populates this, with
+	// one entry per individual in bestPop. See ReplayBundle's own javadoc.
+	private List<ReplayBundle> replayBundles;
 
 	public SolutionResult(List<Double> syncCoverage, EvolutionStatistics<TestFitness, ?> statistics,
 			ISeq<Phenotype<IntegerGene, TestFitness>> bestList, ISeq<Phenotype<IntegerGene, TestFitness>> bestPop) {
@@ -21,6 +25,14 @@ public class SolutionResult {
 		this.statistics = statistics;
 		this.bestList = bestList;
 		this.bestPop = bestPop;
+	}
+
+	public List<ReplayBundle> getReplayBundles() {
+		return replayBundles;
+	}
+
+	public void setReplayBundles(List<ReplayBundle> replayBundles) {
+		this.replayBundles = replayBundles;
 	}
 
 	public ISeq<Phenotype<IntegerGene, TestFitness>> getBestPop() {
