@@ -1,0 +1,55 @@
+{
+  "benchmark": {
+    "name": "sieve",
+    "path": "./benchmark/message_passing/011_parallel_sieve_of_eratosthenes",
+    "processes": ["Master", "Slave", "Slave", "Slave"],
+    "parseFiles": ["Master.class", "Slave.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Master", "args": "0 4 TESTDATA" },
+      { "id": 1, "className": "Slave", "args": "1 4 TESTDATA" },
+      { "id": 2, "className": "Slave", "args": "2 4 TESTDATA" },
+      { "id": 3, "className": "Slave", "args": "3 4 TESTDATA" }
+    ],
+    "argumentsLength": 1,
+    "argumentRanges": [
+      { "min": 20, "max": 10001 }
+    ],
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "Master", "to": "Slave" },
+        { "from": "Slave", "to": "Master" },
+        { "from": "Slave", "to": "Slave" }
+      ],
+      "fixedMessageTargets": {
+        "1@Slave#main:2": 0,
+        "2@Slave#main:2": 0,
+        "3@Slave#main:2": 2
+      },
+      "fixedMessageSources": {
+        "Master#main:2": [1, 2],
+        "2@Slave#main:1": [3],
+        "1@Slave#main:1": [],
+        "3@Slave#main:1": [],
+        "Slave#main:0": [0]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 20,
+    "max": 10000,
+    "threadExecutors": 8,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "sieve-covinst"
+  }
+}
