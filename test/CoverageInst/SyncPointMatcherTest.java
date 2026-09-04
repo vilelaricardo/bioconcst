@@ -29,6 +29,17 @@ class SyncPointMatcherTest {
 	private static final String CYCLIC_BARRIER = "java/util/concurrent/CyclicBarrier";
 
 	@Test
+	void datagramInitMatchesBothPlainAndMulticastSocketConstructionButNoOtherOpcode() {
+		// Not a numbered sync point (no edge id, no discovered SyncPoint) -
+		// still its own predicate, checked directly since matchKind never
+		// references it at all.
+		assertTrue(SyncPointMatcher.isDatagramInit(Opcodes.INVOKESPECIAL, DATAGRAM_SOCKET, "<init>", "()V"));
+		assertTrue(SyncPointMatcher.isDatagramInit(Opcodes.INVOKESPECIAL, MULTICAST_SOCKET, "<init>", "(I)V"));
+		assertFalse(SyncPointMatcher.isDatagramInit(Opcodes.INVOKEVIRTUAL, DATAGRAM_SOCKET, "<init>", "()V"),
+				"construction is always INVOKESPECIAL, never INVOKEVIRTUAL");
+	}
+
+	@Test
 	void datagramSendMatchesBothPlainAndMulticastSockets() {
 		assertTrue(SyncPointMatcher.isDatagramSend(Opcodes.INVOKEVIRTUAL, DATAGRAM_SOCKET, "send", DATAGRAM_PACKET));
 		assertTrue(
