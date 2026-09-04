@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -99,6 +101,37 @@ class AcademicCfgBuilderTest {
 		assertFalse(result.graphs.keySet().stream().anyMatch(key -> key.contains("<init>") || key.contains("<clinit>")),
 				"constructors and static initializers are never real process behavior, must not appear as nodes: "
 						+ result.graphs.keySet());
+	}
+
+	@Test
+	void selfRecursionExpandsOnceThenStopsInsteadOfHangingForever() throws Exception {
+		// Documented but previously unverified: "a call whose target is
+		// never re-entered along the current call path is expanded,
+		// otherwise it's left as a dead end - no current benchmark
+		// recurses, but this must not hang if one someday does." The guard
+		// checks activeOnPath (the state BEFORE entering the current
+		// frame), not the frame's own updated set, so a method calling
+		// itself gets unrolled exactly ONCE (two copies total: the original
+		// plus one recursive copy) before the second attempted recursive
+		// call is cut off - not zero (which would misrepresent a real call
+		// as an immediate dead end) and not unbounded (which would hang).
+		ClassResult result = assertTimeout(Duration.ofSeconds(5), () -> build("RecursiveFixture", """
+				public class RecursiveFixture {
+				    public static void main(String[] args) {
+				        recurse();
+				    }
+
+				    static void recurse() {
+				        recurse();
+				    }
+				}
+				"""));
+
+		ControlFlowGraph mainGraph = result.graphs.get("RecursiveFixture#main");
+		long recurseEntryCopies = mainGraph.successors().keySet().stream()
+				.filter(key -> key.startsWith("RecursiveFixture#recurse:B0")).count();
+
+		assertEquals(2, recurseEntryCopies);
 	}
 
 	@Test
