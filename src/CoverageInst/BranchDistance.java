@@ -61,8 +61,35 @@ public final class BranchDistance {
 		if (conditionTrue == wantedTaken) {
 			return 0.0;
 		}
-		double raw = rawDistance(opcode, a, b);
+		// rawDistance's per-relation formulas each assume they're measuring
+		// "how far is THIS relation from being true" - correct as-is when
+		// wantedTaken is true (opcode's own relation is what we want), but
+		// when wantedTaken is false we want the OPPOSITE relation instead
+		// (e.g. wanting IF_ICMPLT's jump NOT taken means wanting a>=b, i.e.
+		// IF_ICMPGE's relation) - reusing opcode's own formula for that case
+		// used a>=b's actual values against a<b's formula, sometimes going
+		// negative (e.g. LT with a=3,b=5,wantedTaken=false: (3-5)+1 = -1).
+		int effectiveOpcode = wantedTaken ? opcode : negate(opcode);
+		double raw = rawDistance(effectiveOpcode, a, b);
 		return raw / (raw + 1.0);
+	}
+
+	private static int negate(int opcode) {
+		return switch (opcode) {
+			case Opcodes.IF_ICMPEQ -> Opcodes.IF_ICMPNE;
+			case Opcodes.IF_ICMPNE -> Opcodes.IF_ICMPEQ;
+			case Opcodes.IF_ICMPLT -> Opcodes.IF_ICMPGE;
+			case Opcodes.IF_ICMPGE -> Opcodes.IF_ICMPLT;
+			case Opcodes.IF_ICMPGT -> Opcodes.IF_ICMPLE;
+			case Opcodes.IF_ICMPLE -> Opcodes.IF_ICMPGT;
+			case Opcodes.IFEQ -> Opcodes.IFNE;
+			case Opcodes.IFNE -> Opcodes.IFEQ;
+			case Opcodes.IFLT -> Opcodes.IFGE;
+			case Opcodes.IFGE -> Opcodes.IFLT;
+			case Opcodes.IFGT -> Opcodes.IFLE;
+			case Opcodes.IFLE -> Opcodes.IFGT;
+			default -> throw new IllegalArgumentException("Not a recognized numeric predicate opcode: " + opcode);
+		};
 	}
 
 	private static boolean evaluate(int opcode, int a, int b) {
