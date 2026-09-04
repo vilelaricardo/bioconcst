@@ -111,6 +111,38 @@ class RequiredElementsGeneratorTest {
 	}
 
 	@Test
+	void fixedMessageTargetsAloneDoesNotRestrictWhichReceiveEdgeOnTheTargetProcess() {
+		// fixedMessageTargets only pins WHICH PROCESS a send reaches - it
+		// does not restrict which of that process's several receive points
+		// it can pair with. This exact gap was self-caught twice this
+		// session (010_token_ring_both_directions_different_primitives and
+		// 011_parallel_sieve_of_eratosthenes): fixedMessageSources on the
+		// OTHER receive point is what's actually needed to fully
+		// disambiguate - see the next test.
+		ProcessInstance senderA = process(1, "Slave", send("Slave#main:0"));
+		ProcessInstance target = process(2, "Slave", receive("Slave#main:0"), receive("Slave#main:1"));
+
+		List<RequiredEdge> edges = RequiredElementsGenerator.generate(List.of(senderA, target),
+				topology(List.of(new RoleLink("Slave", "Slave")), Map.of("1@Slave#main:0", 2), Map.of(), Map.of()));
+
+		assertEquals(Set.of("Slave#main:0@p1 -> Slave#main:0@p2", "Slave#main:0@p1 -> Slave#main:1@p2"),
+				asStrings(edges), "target-pinning alone can't tell the two receive points on process 2 apart");
+	}
+
+	@Test
+	void fixedMessageSourcesOnTheOtherReceivePointClosesTheGapTargetPinningLeavesOpen() {
+		ProcessInstance senderA = process(1, "Slave", send("Slave#main:0"));
+		ProcessInstance target = process(2, "Slave", receive("Slave#main:0"), receive("Slave#main:1"));
+
+		// main:1 is only ever fed by process 3 in the real topology - senderA (1) is not allowed.
+		Map<String, List<Integer>> sources = Map.of("2@Slave#main:1", List.of(3));
+		List<RequiredEdge> edges = RequiredElementsGenerator.generate(List.of(senderA, target),
+				topology(List.of(new RoleLink("Slave", "Slave")), Map.of("1@Slave#main:0", 2), sources, Map.of()));
+
+		assertEquals(Set.of("Slave#main:0@p1 -> Slave#main:0@p2"), asStrings(edges));
+	}
+
+	@Test
 	void fixedMessageSourcesEmptyListExcludesTheEdgeEntirely() {
 		// The "empty array" trick used for gcd-lcm-both: a receive point that's
 		// structurally never fed by anyone must be excludable, not just narrowed.
