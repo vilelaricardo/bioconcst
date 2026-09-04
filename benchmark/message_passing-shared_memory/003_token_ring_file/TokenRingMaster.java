@@ -80,7 +80,7 @@ public class TokenRingMaster {
         ValiparInitializer.notifyClients(0);
         
         ValiparInitializer.waitServer(String.valueOf(1));
-        ValiparInitializer.waitServer(String.valueOf(2));
+        ValiparInitializer.waitServer(String.valueOf(processAmount - 1));
 
         clockwiseSendPort = ValiparInitializer.getPort(1);
         counterclockwiseSendPort = ValiparInitializer.getPort(processAmount - 1);

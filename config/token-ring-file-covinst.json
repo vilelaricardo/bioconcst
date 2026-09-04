@@ -1,0 +1,71 @@
+{
+  "benchmark": {
+    "name": "token-ring-file",
+    "path": "./benchmark/message_passing-shared_memory/003_token_ring_file",
+    "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+    "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class", "Producer.class"],
+    "ignoreFiles": ["Buffer.class", "ValiparInitializer.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "TokenRingMaster", "args": "TESTDATA 4" },
+      { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+      { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+      { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      { "min": 0, "max": 2 },
+      { "min": 0, "max": 2 }
+    ],
+    "execTimeLimitMs": 15000,
+    "coverageInst": {
+      "extraClassesByRole": {
+        "TokenRingSlave": ["TokenRingSlave", "Producer"]
+      },
+      "roleLinks": [
+        { "from": "TokenRingMaster", "to": "TokenRingSlave" },
+        { "from": "TokenRingSlave", "to": "TokenRingMaster" },
+        { "from": "TokenRingSlave", "to": "TokenRingSlave" }
+      ],
+      "fixedMessageTargets": {
+        "TokenRingMaster#main:0": 1,
+        "TokenRingMaster#main:1": 3,
+        "1@TokenRingSlave#main:2": 2,
+        "1@TokenRingSlave#main:3": 0,
+        "2@TokenRingSlave#main:2": 3,
+        "2@TokenRingSlave#main:3": 1,
+        "3@TokenRingSlave#main:2": 0,
+        "3@TokenRingSlave#main:3": 2
+      },
+      "fixedMessageSources": {
+        "1@TokenRingSlave#main:1": [0, 2],
+        "2@TokenRingSlave#main:1": [1, 3],
+        "3@TokenRingSlave#main:1": [2, 0],
+        "TokenRingMaster#main:2": [3, 1]
+      },
+      "identityGroups": {
+        "TokenRingSlave#main:0": "tokenToProducer",
+        "Producer#run:0": "tokenToProducer",
+        "Producer#run:1": "tokenToProducer",
+        "Producer#run:2": "tokenToProducer",
+        "Producer#run:3": "tokenToProducer"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 2,
+    "threadExecutors": 4,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "token-ring-file-covinst"
+  }
+}
