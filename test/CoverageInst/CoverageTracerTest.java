@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -112,6 +114,65 @@ class CoverageTracerTest {
 
 		String resolved = (String) resolveProcessId.invoke(null, registeredAddress);
 		assertEquals("1", resolved);
+	}
+
+	@Test
+	void beforeSendWritesATraceLineInTheExactFormatCoverageEvaluatorParses() throws Exception {
+		// CoverageEvaluatorTest only ever exercises synthetic, hand-written
+		// trace files - this is the other half of that contract: the REAL
+		// CoverageTracer must actually produce a line that parses back to
+		// the same "SEND edgeId resolvedProcessId" shape.
+		File coverageDir = Files.createTempDirectory("coverageinst-tracer-test").toFile();
+		Files.createDirectories(new File(coverageDir, "registry").toPath());
+		Files.writeString(new File(coverageDir, "registry/1.addr").toPath(), "127.0.0.1:9999\n");
+
+		Class<?> tracer = freshTracerClass(coverageDir, 0);
+		Method beforeSend = tracer.getMethod("beforeSend", DatagramSocket.class, DatagramPacket.class, String.class);
+		Method afterSend = tracer.getMethod("afterSend");
+		Method flush = tracer.getDeclaredMethod("flush");
+		flush.setAccessible(true);
+
+		try (DatagramSocket socket = new DatagramSocket()) {
+			byte[] buf = "hi".getBytes();
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, InetAddress.getByName("127.0.0.1"), 9999);
+			beforeSend.invoke(null, socket, packet, "Fixture#main:0");
+			afterSend.invoke(null);
+		}
+		flush.invoke(null);
+
+		List<String> lines = Files.readAllLines(new File(coverageDir, "trace-0.log").toPath());
+		assertEquals(1, lines.size());
+		String[] parts = lines.get(0).split(" ");
+		assertEquals("SEND", parts[0]);
+		assertEquals("Fixture#main:0", parts[1]);
+		assertEquals("1", parts[2], "the destination address registered by process 1 must resolve to processId 1");
+	}
+
+	@Test
+	void afterReceiveWritesATraceLineInTheExactFormatCoverageEvaluatorParses() throws Exception {
+		File coverageDir = Files.createTempDirectory("coverageinst-tracer-test").toFile();
+		Files.createDirectories(new File(coverageDir, "registry").toPath());
+		Files.writeString(new File(coverageDir, "registry/2.addr").toPath(), "127.0.0.1:8888\n");
+
+		Class<?> tracer = freshTracerClass(coverageDir, 0);
+		Method afterReceive = tracer.getMethod("afterReceive", DatagramSocket.class, DatagramPacket.class,
+				String.class);
+		Method flush = tracer.getDeclaredMethod("flush");
+		flush.setAccessible(true);
+
+		try (DatagramSocket socket = new DatagramSocket()) {
+			byte[] buf = "hi".getBytes();
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, InetAddress.getByName("127.0.0.1"), 8888);
+			afterReceive.invoke(null, socket, packet, "Fixture#main:1");
+		}
+		flush.invoke(null);
+
+		List<String> lines = Files.readAllLines(new File(coverageDir, "trace-0.log").toPath());
+		assertEquals(1, lines.size());
+		String[] parts = lines.get(0).split(" ");
+		assertEquals("RECEIVE", parts[0]);
+		assertEquals("Fixture#main:1", parts[1]);
+		assertEquals("2", parts[2], "the source address registered by process 2 must resolve to processId 2");
 	}
 
 	@Test
