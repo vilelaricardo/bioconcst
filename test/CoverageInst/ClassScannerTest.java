@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -132,6 +133,42 @@ class ClassScannerTest {
 				""");
 
 		assertTrue(ClassScanner.scan(classFile, "Plain").isEmpty());
+	}
+
+	@Test
+	void scanProcessCombinesSyncPointsAcrossMultipleClassesInOneProcess() throws Exception {
+		// Documented in ProcessInstance's own javadoc: a process isn't
+		// always one class - combined-handshake's Peer spawns an internal
+		// WindowChecker thread in the same JVM, and both classes' sync
+		// points belong to that one process instance. Each class is scanned
+		// (and edge-id-numbered) independently - concatenation, not a
+		// shared counter across classes.
+		Map<String, File> compiled = FixtureCompiler.compile(Map.of("Main", """
+				public class Main {
+				    public static void main(String[] args) {
+				        Helper.doRelease();
+				    }
+				}
+				""", "Helper", """
+				import java.util.concurrent.Semaphore;
+
+				public class Helper {
+				    static Semaphore sem = new Semaphore(0);
+
+				    static void doRelease() {
+				        sem.release();
+				    }
+				}
+				"""));
+		File classDir = compiled.get("Main").getParentFile();
+
+		ProcessInstance process = ClassScanner.scanProcess(classDir, 7, "Peer", List.of("Main", "Helper"));
+
+		assertEquals(7, process.processId);
+		assertEquals("Peer", process.role);
+		assertEquals(1, process.syncPoints.size(), "Main itself has no sync point of its own - only Helper's does");
+		assertEquals(SyncPoint.Kind.SEM_RELEASE, process.syncPoints.get(0).kind);
+		assertEquals("Helper#doRelease:0", process.syncPoints.get(0).edgeId);
 	}
 
 	@Test
