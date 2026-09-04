@@ -1,0 +1,62 @@
+{
+  "benchmark": {
+    "name": "producer-consumer",
+    "path": "./benchmark/shared_memory/004_producer_consumer_semaphore_lock_condition_iterations",
+    "processes": ["Main"],
+    "parseFiles": ["Main.class", "Producer.class", "Consumer.class", "Buffer_Semaphore.class", "Buffer_With_Lock_Condition.class"],
+    "ignoreFiles": [],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Main", "args": "TESTDATA" }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      { "min": 4, "max": 5 },
+      { "min": 0, "max": 2 },
+      { "min": 1, "max": 11 },
+      { "min": 0, "max": 2 }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "Main": ["Main", "Producer", "Consumer", "Buffer_Semaphore", "Buffer_With_Lock_Condition"]
+      },
+      "identityGroups": {
+        "Main#main:0": "tokenToProducer",
+        "Producer#run:0": "tokenToProducer",
+        "Producer#run:2": "tokenToProducer",
+        "Consumer#run:1": "tokenToProducer",
+        "Consumer#run:0": "tokenToConsumer",
+        "Producer#run:1": "tokenToConsumer",
+        "Producer#run:3": "tokenToConsumer",
+        "Buffer_With_Lock_Condition#setIncrementSharedValue:0": "acessLock",
+        "Buffer_With_Lock_Condition#setIncrementSharedValue:3": "acessLock",
+        "Buffer_With_Lock_Condition#setMultiplySharedValue:4": "acessLock",
+        "Buffer_With_Lock_Condition#setMultiplySharedValue:7": "acessLock",
+        "Buffer_With_Lock_Condition#getSharedValue:8": "acessLock",
+        "Buffer_With_Lock_Condition#getSharedValue:11": "acessLock",
+        "Buffer_With_Lock_Condition#setIncrementSharedValue:1": "canWrite",
+        "Buffer_With_Lock_Condition#setMultiplySharedValue:5": "canWrite",
+        "Buffer_With_Lock_Condition#getSharedValue:10": "canWrite",
+        "Buffer_With_Lock_Condition#getSharedValue:9": "canRead",
+        "Buffer_With_Lock_Condition#setIncrementSharedValue:2": "canRead",
+        "Buffer_With_Lock_Condition#setMultiplySharedValue:6": "canRead"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 12,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "producer-consumer-covinst"
+  }
+}

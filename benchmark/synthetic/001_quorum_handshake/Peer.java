@@ -16,6 +16,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+// Run as two instances of this same class (peer 1 and peer 2) - part of why
+// this benchmark's real coverage ceiling is below 100%; see Coordinator.java.
 public class Peer {
     static final int WINDOW_LOW = 480;
     static final int WINDOW_HIGH = 519;

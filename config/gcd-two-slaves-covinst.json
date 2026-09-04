@@ -1,0 +1,38 @@
+{
+  "benchmark": {
+    "name": "gcd-two-slaves",
+    "path": "./benchmark/message_passing/006_parallel_gcd_two_slaves",
+    "processes": ["GcdMaster", "GcdSlave", "GcdSlave"],
+    "parseFiles": ["GcdMaster.class", "GcdSlave.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "GcdMaster", "args": "TESTDATA" },
+      { "id": 1, "className": "GcdSlave", "args": "1" },
+      { "id": 2, "className": "GcdSlave", "args": "2" }
+    ],
+    "argumentsLength": 3,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "GcdMaster", "to": "GcdSlave" },
+        { "from": "GcdSlave", "to": "GcdMaster" }
+      ]
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 1,
+    "max": 100,
+    "threadExecutors": 12,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "gcd-two-slaves-covinst"
+  }
+}

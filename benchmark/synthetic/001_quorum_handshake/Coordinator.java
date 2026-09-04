@@ -37,6 +37,18 @@ public class Coordinator {
 
         java.nio.file.Files.createFile(java.nio.file.Paths.get("coordinator"));
 
+        // Same Coordinator code as combined-handshake, which has the same
+        // structural issue - see the note there for the full explanation and
+        // measured numbers (66.67% = 16/24 is the real per-suite ceiling on
+        // that benchmark, not 100%): ValiPar pairs a send with every
+        // syntactically-compatible receive, so it generates a Peer<->Peer
+        // pairing (impossible - each Peer only ever talks to this
+        // Coordinator, since both peers are the same class run twice) and
+        // pairs each socket.send() below with BOTH peers' receive even
+        // though it only ever targets one, via its own remoteIP/remotePort.
+        // Not a bug to route around by redesigning the benchmark - which
+        // vote lands in votePacket1 vs votePacket2 is a genuine UDP race,
+        // and that's exactly the kind of thing this suite exists to test.
         byte[] receiveBuffer1 = new byte[255];
         DatagramPacket votePacket1 = new DatagramPacket(receiveBuffer1, receiveBuffer1.length);
         socket.receive(votePacket1);

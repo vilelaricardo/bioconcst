@@ -37,6 +37,21 @@ public class Coordinator {
 
         java.nio.file.Files.createFile(java.nio.file.Paths.get("coordinator"));
 
+        // Measured (2026-09): the GA's real per-suite coverage ceiling here is
+        // 66.67% (16/24 sync-edge requirements), not 100%, no matter how the
+        // search is tuned - confirmed by inspecting the raw
+        // sync_edge_requirements.json for an individual with both peers
+        // in-window. 8 of the 24 are structurally unreachable: ValiPar pairs
+        // a send with every syntactically-compatible receive, but (a) the two
+        // Peer processes are the same class run twice, so it also generates a
+        // Peer<->Peer pairing that can never happen (each Peer only ever
+        // talks to this Coordinator), and (b) each socket.send() below
+        // targets one specific peer via its own remoteIP/remotePort, but
+        // ValiPar can't see that from the call site and pairs it with BOTH
+        // peers' receive. This is not a bug to route around by redesigning
+        // the benchmark - which physical vote lands in votePacket1 vs
+        // votePacket2 is a genuine race over UDP, and that ambiguity is
+        // exactly the kind of thing this suite exists to exercise.
         byte[] receiveBuffer1 = new byte[255];
         DatagramPacket votePacket1 = new DatagramPacket(receiveBuffer1, receiveBuffer1.length);
         socket.receive(votePacket1);

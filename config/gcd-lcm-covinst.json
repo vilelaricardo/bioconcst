@@ -1,0 +1,51 @@
+{
+  "benchmark": {
+    "name": "gcd-lcm",
+    "path": "./benchmark/message_passing/007_gcd_lcm",
+    "processes": ["GcdLcmMaster", "GcdLcmSlave", "GcdLcmSlave", "GcdLcmSlave"],
+    "parseFiles": ["GcdLcmMaster.class", "GcdLcmSlave.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "GcdLcmMaster", "args": "TESTDATA" },
+      { "id": 1, "className": "GcdLcmSlave", "args": "1" },
+      { "id": 2, "className": "GcdLcmSlave", "args": "2" },
+      { "id": 3, "className": "GcdLcmSlave", "args": "3" }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      { "min": 0, "max": 2 },
+      { "min": 0, "max": 100 },
+      { "min": 0, "max": 100 },
+      { "min": 0, "max": 100 }
+    ],
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "GcdLcmMaster", "to": "GcdLcmSlave" },
+        { "from": "GcdLcmSlave", "to": "GcdLcmMaster" }
+      ],
+      "fixedMessageSources": {
+        "GcdLcmMaster#main:0": [1],
+        "GcdLcmMaster#main:1": [2],
+        "GcdLcmMaster#main:2": [3],
+        "GcdLcmMaster#main:3": [3]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 12,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "gcd-lcm-covinst"
+  }
+}

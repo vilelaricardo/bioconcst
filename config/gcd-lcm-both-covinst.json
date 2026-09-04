@@ -1,0 +1,44 @@
+{
+  "benchmark": {
+    "name": "gcd-lcm-both",
+    "path": "./benchmark/message_passing-shared_memory/005_gcd_lcm_both",
+    "processes": ["GcdLcmMaster", "GcdLcmSlave", "GcdLcmSlave"],
+    "parseFiles": ["GcdLcmMaster.class", "GcdLcmSlave.class", "GcdThread.class", "LcmThread.class"],
+    "ignoreFiles": ["HelperClass.class", "Buffer.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "GcdLcmMaster", "args": "2 TESTDATA" },
+      { "id": 1, "className": "GcdLcmSlave", "args": "1" },
+      { "id": 2, "className": "GcdLcmSlave", "args": "2" }
+    ],
+    "argumentsLength": 3,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "GcdLcmMaster", "to": "GcdLcmSlave" },
+        { "from": "GcdLcmSlave", "to": "GcdLcmMaster" }
+      ],
+      "fixedMessageSources": {
+        "GcdLcmMaster#main:0": [1],
+        "GcdLcmMaster#main:1": [2],
+        "GcdLcmMaster#main:2": [],
+        "GcdLcmMaster#main:3": []
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 1,
+    "max": 100,
+    "threadExecutors": 12,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "gcd-lcm-both-covinst"
+  }
+}

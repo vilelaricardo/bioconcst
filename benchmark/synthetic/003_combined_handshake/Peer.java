@@ -18,6 +18,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Semaphore;
 
+// Run as two instances of this same class (peer 1 and peer 2) - part of why
+// this benchmark's real coverage ceiling is 66.67%, not 100%; see
+// Coordinator.java for the measured numbers and full explanation.
 public class Peer {
     public static void main(String[] args) throws IOException, InterruptedException {
         int processId = Integer.parseInt(args[0]);
