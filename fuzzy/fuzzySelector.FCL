@@ -11,29 +11,41 @@ FUNCTION_BLOCK  TESTGENERATOR
 		survivor:REAL;
 	END_VAR
 
-	// Rescaled 2026-09-02 from the original 0..1 domain: real distance values
-	// across every benchmark measured so far (~450 data points, 20+ distinct
-	// benchmarks) never exceeded ~0.41 - the top half of the old [0,1] range
-	// was dead space no run ever reached, so "fitness IS Medium/High" almost
-	// never fired and selection collapsed onto originality alone. New domain
-	// tops out at 0.45 (comfortable headroom above the observed max), same
-	// proportional triangular partition as before.
+	// Reverted 2026-09-06 to the pre-09-02 domain for BOTH fitness and
+	// coverage, after a real recalibration attempt for CoverageInst (the
+	// tool that replaced ValiPar - see project_research_questions memory
+	// for the full story) failed to beat this original configuration:
+	// - Data collected: 7840 real per-individual distance/coverage samples
+	//   across all 18 CoverageInst benchmarks this session (not just the
+	//   best-per-generation the existing CSVs already had).
+	// - A deliberate re-rescale (fitness domain widened to 0..0.9 to match
+	//   the real observed ~0.89 max, coverage breakpoints shifted per the
+	//   same "match where values sit" logic the 09-02 rescale used)
+	//   underperformed this original file at every variant tried: 61.1%
+	//   (rescaled fitness + 09-02-style lenient coverage), 76.1% (rescaled
+	//   fitness + this file's stricter coverage), vs. this original file's
+	//   81.7%/90.0% (two N=15 runs, quorum-handshake, 30 generations) -
+	//   consistently at or above every deliberate recalibration attempt.
+	// - Takeaway: matching a threshold to where values commonly SIT is not
+	//   the same goal as keeping it aspirational enough to sustain
+	//   selection pressure - the original file's wider fitness domain and
+	//   stricter coverage thresholds (High needs 60-80%, not 35-55%)
+	//   apparently do the latter better under CoverageInst, whatever the
+	//   original (ValiPar-era) reasoning for those specific numbers was.
+	// Since nothing tried beats it, kept as-is rather than changed for its
+	// own sake - see the 2026-09-02 rescale immediately below in git
+	// history for the (ValiPar-only) reasoning that once replaced this.
 	FUZZIFY	fitness
-		TERM Low 		:= TRIAN 0 0 0.1875;
-		TERM Medium 	:= TRIAN 0.0375 0.225 0.4125;
-		TERM High 		:= TRIAN 0.2625 0.45 0.45;
+		TERM Low 		:= TRIAN 0 0 0.4167;
+		TERM Medium 	:= TRIAN 0.0833333333333333 0.5 0.916666666666667;
+		TERM High 		:= TRIAN 0.5833 1 1;
 	END_FUZZIFY
 
 
-	// Rescaled 2026-09-02: real coverage% at the empirical median (~20%) used
-	// to fall entirely inside the flat top of "Low" (0 nuance), while several
-	// real runs reached 60-67% and got no credit for being close to "High"
-	// (which started at 80% full membership). Shifted down so the common
-	// range (10-50%) actually spans Low/Medium/High instead of pegging Low.
 	FUZZIFY	coverage
-		TERM Low	:= TRAPE 0 0 10 25;
-		TERM Medium	:= TRIAN 12 30 48;
-		TERM High	:= TRAPE 35 55 100 100;
+		TERM Low	:= TRAPE 0 0 20 40;
+		TERM Medium	:= TRIAN 25 50 75;
+		TERM High	:= TRAPE 60 80 100 100;
 	END_FUZZIFY
 	
 		
