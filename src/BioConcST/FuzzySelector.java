@@ -45,6 +45,20 @@ public class FuzzySelector<G extends Gene<?, G>> implements Selector<G, TestFitn
 				rankedSurvivor.add(new Survivor(population.get(i), testDataSuvivor(population, population.get(i))));
 			}
 
+			// Collections.sort is a STABLE sort: without shuffling first,
+			// any tie in the fuzzy survivor score (common - e.g. two
+			// individuals with identical distance/coverage/originality)
+			// would always resolve in favor of whichever one happened to
+			// come first in the population's own iteration order - a
+			// silent positional bias with nothing to do with fitness.
+			// Confirmed this session while investigating why a new
+			// race-choice gene's population converged 16/16 to the same
+			// value even at raceMutationRate=0.3: many individuals tied
+			// exactly on distance+coverage, and ties always favored the
+			// same side. Shuffling first randomizes which side wins a
+			// genuine tie, without changing how any non-tied comparison
+			// is decided.
+			Collections.shuffle(rankedSurvivor);
 			Collections.sort(rankedSurvivor, Collections.reverseOrder());
 
 			for (int i = 0; i < count; ++i) {
