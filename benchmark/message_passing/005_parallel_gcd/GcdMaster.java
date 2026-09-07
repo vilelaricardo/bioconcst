@@ -65,7 +65,7 @@ if(firstValue>0 && secondValue>0 && thirdValue>0 ){
         // create socket
         DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // make address file with IP:PORT
@@ -144,7 +144,7 @@ if(firstValue>0 && secondValue>0 && thirdValue>0 ){
 	// create socket
 	DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // make address file with IP:PORT

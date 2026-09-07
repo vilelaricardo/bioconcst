@@ -54,7 +54,7 @@ public class Master {
         // create socket
         DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // make address file with IP:PORT

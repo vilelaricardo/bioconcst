@@ -19,7 +19,7 @@ public class Coordinator {
 
         DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         String address = HelperClass.makeAddress(ip, port);

@@ -210,6 +210,16 @@ public final class CoverageInstRun {
 			if (replaySchedule != null) {
 				command.add("-Dcoverage.replaySchedule=" + replaySchedule.getAbsolutePath());
 			}
+			// Forwarded from this (parent) JVM's own property, if set, so a
+			// heavily-oversubscribed host can raise every launched process's
+			// registry-lookup budget with one -D flag on the outer
+			// TestDataGeneration command, instead of touching every
+			// benchmark/config - see CoverageTracer's own javadoc for why
+			// the default is deliberately short.
+			String registryTimeoutMs = System.getProperty("coverage.registryTimeoutMs");
+			if (registryTimeoutMs != null) {
+				command.add("-Dcoverage.registryTimeoutMs=" + registryTimeoutMs);
+			}
 			command.addAll(List.of("-cp", classpath, spec.className));
 			command.addAll(List.of(spec.args));
 			ProcessBuilder builder = new ProcessBuilder(command).directory(testDir).redirectErrorStream(true)

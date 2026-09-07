@@ -21,7 +21,7 @@ if((range>=20 && range<=10000)){
    
         // create socket
         DatagramSocket socket = new DatagramSocket();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
         int port = socket.getLocalPort();
 

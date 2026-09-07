@@ -50,13 +50,22 @@ public final class CoverageTracer {
 	private static final File TRACE_LOG = new File(COVERAGE_DIR, "trace-" + PROCESS_ID + ".log");
 	// Registration happens within milliseconds of socket construction in
 	// practice (it's the first thing beforeSend/afterReceive/registerSocket
-	// do) - 1.5s is already generous slack, not a tight budget. Kept short
-	// on purpose: a real stuck/never-registering process should fail fast
-	// and loud (see the warning in resolveProcessId), not silently stall
-	// every unresolved lookup for 5s each, which is exactly what let stale
-	// background processes from earlier, unrelated runs pile up and
-	// interleave trace output during CoverageInst's own development.
-	private static final int REGISTRY_LOOKUP_TIMEOUT_MS = 1500;
+	// do) - 1.5s is already generous slack under normal load, not a tight
+	// budget. Kept short by default on purpose: a real stuck/never-
+	// registering process should fail fast and loud (see the warning in
+	// resolveProcessId), not silently stall every unresolved lookup for 5s
+	// each, which is exactly what let stale background processes from
+	// earlier, unrelated runs pile up and interleave trace output during
+	// CoverageInst's own development. Overridable via
+	// -Dcoverage.registryTimeoutMs for heavily-oversubscribed hosts (many
+	// concurrent test-case evaluations competing for few cores) where the
+	// registering process itself may not get scheduled in time - confirmed
+	// on a 12-core machine running 3 full-scale GA_COVINST experiments at
+	// once (~70 concurrent JVMs): registrations were correct, just too slow
+	// under that contention for the 1.5s default, silently zeroing out
+	// measured coverage without any test actually failing.
+	private static final int REGISTRY_LOOKUP_TIMEOUT_MS = Integer
+			.parseInt(System.getProperty("coverage.registryTimeoutMs", "1500"));
 	private static final int REGISTRY_LOOKUP_POLL_MS = 10;
 
 	// Replay mode (controlled execution, see ReplaySchedule's own javadoc for
@@ -147,12 +156,19 @@ public final class CoverageTracer {
 			// An unbound DatagramSocket()'s local address is the wildcard
 			// (0.0.0.0 / ::), valid for receiving on any interface but
 			// useless as an address other processes can send *to* -
-			// substitute the machine's real address, same fix as
-			// ValiPar's own UddiRequest.register() needed (see
-			// project_valipar_compat memory).
+			// substitute a real, reachable address. Every process
+			// CoverageInstRun ever launches runs on ONE machine and talks
+			// over loopback (never a genuine cross-host benchmark), so
+			// getLoopbackAddress() is the correct substitute, not
+			// getLocalHost() - confirmed the hard way on a Linux host
+			// (Ubuntu) whose /etc/hosts maps its own hostname to
+			// 127.0.1.1: getLocalHost() returned that instead of the
+			// 127.0.0.1 real incoming packets actually arrive from,
+			// silently breaking every registry lookup on that host while
+			// working fine on macOS (no such /etc/hosts entry there).
 			java.net.InetAddress localAddress = socket.getLocalAddress();
 			if (localAddress.isAnyLocalAddress()) {
-				localAddress = java.net.InetAddress.getLocalHost();
+				localAddress = java.net.InetAddress.getLoopbackAddress();
 			}
 			String address = localAddress.getHostAddress() + ":" + socket.getLocalPort();
 			appendToRegistry(address);
@@ -183,7 +199,7 @@ public final class CoverageTracer {
 			}
 			java.net.InetAddress localAddress = inet.getAddress();
 			if (localAddress == null || localAddress.isAnyLocalAddress()) {
-				localAddress = java.net.InetAddress.getLocalHost();
+				localAddress = java.net.InetAddress.getLoopbackAddress();
 			}
 			String address = localAddress.getHostAddress() + ":" + inet.getPort();
 			appendToRegistry(address);

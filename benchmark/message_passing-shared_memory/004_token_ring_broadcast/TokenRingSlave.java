@@ -28,14 +28,14 @@ if((operation==0) || (operation==1)){
         // create socket
         DatagramSocket socket = new DatagramSocket(); 
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
         
         InetAddress group = InetAddress.getByName("228.5.6.7");
         MulticastSocket socketBroadcast = new MulticastSocket(6789);
         socketBroadcast.joinGroup(group);
         
-        InetAddress serverIP = InetAddress.getLocalHost();
+        InetAddress serverIP = InetAddress.getLoopbackAddress();
         
         // make address file with IP:PORT
         String address = HelperClass.makeAddress(ip, port); 
