@@ -20,6 +20,15 @@ import org.objectweb.asm.commons.LocalVariablesSorter;
  * One edge id is assigned per call site (not per method), sequentially,
  * as they're discovered scanning the class: "<ClassName>#<method>:<n>".
  *
+ * `synchronized` blocks are also recognized, via a separate visitInsn
+ * override (MONITORENTER/MONITOREXIT are bare zero-operand instructions,
+ * never a method-instruction call site) - see SyncPointMatcher.matchInsnKind
+ * for the exact scope and the known double-MONITOREXIT-per-block wrinkle.
+ * `synchronized` METHODS are not recognized: javac emits no
+ * MONITORENTER/MONITOREXIT for those at all (only the ACC_SYNCHRONIZED
+ * access flag, checked implicitly by the JVM), so there is nothing here to
+ * hook - no benchmark needs this today.
+ *
  * Scope, deliberate for now: matches are exact-owner (java/net/DatagramSocket
  * specifically, not subclasses like MulticastSocket - a statically-typed
  * `MulticastSocket` variable's calls would carry that owner in the
@@ -282,6 +291,37 @@ public class ClassInstrumenter extends ClassVisitor {
 			}
 
 			super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+		}
+
+		// synchronized(obj){...} - MONITORENTER/MONITOREXIT are bare
+		// zero-operand instructions (no owner/name/descriptor), so they
+		// arrive here, never in visitMethodInsn above. Both instructions
+		// pop exactly one operand (the monitor objectref) and push
+		// nothing, so the same DUP-based idioms Lock's lock()/unlock() use
+		// apply unchanged - no scratch local needed.
+		@Override
+		public void visitInsn(int opcode) {
+			if (opcode == Opcodes.MONITORENTER) {
+				String edgeId = nextEdgeId(methodName, SyncPoint.Kind.SEM_ACQUIRE);
+				super.visitInsn(Opcodes.DUP);
+				super.visitInsn(opcode);
+				super.visitLdcInsn(edgeId);
+				super.visitMethodInsn(Opcodes.INVOKESTATIC, TRACER, "afterSemaphoreAcquire",
+						"(Ljava/lang/Object;Ljava/lang/String;)V", false);
+				return;
+			}
+
+			if (opcode == Opcodes.MONITOREXIT) {
+				String edgeId = nextEdgeId(methodName, SyncPoint.Kind.SEM_RELEASE);
+				super.visitInsn(Opcodes.DUP);
+				super.visitLdcInsn(edgeId);
+				super.visitMethodInsn(Opcodes.INVOKESTATIC, TRACER, "beforeSemaphoreRelease",
+						"(Ljava/lang/Object;Ljava/lang/String;)V", false);
+				super.visitInsn(opcode);
+				return;
+			}
+
+			super.visitInsn(opcode);
 		}
 	}
 }

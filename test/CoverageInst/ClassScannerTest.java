@@ -123,6 +123,35 @@ class ClassScannerTest {
 	}
 
 	@Test
+	void findsMonitorEnterAndBothMonitorExitsForASynchronizedBlock() throws Exception {
+		// synchronized(obj){} compiles to exactly one MONITORENTER but TWO
+		// MONITOREXIT instructions - javac always adds a second, duplicate
+		// one inside a synthetic catch-any handler whose only job is
+		// "release the lock, then rethrow". Both are discovered here as
+		// separate SEM_RELEASE sync points, even though only the first (the
+		// normal-path one) will ever fire for a test case that doesn't
+		// throw while holding the lock - see SyncPointMatcher.matchInsnKind's
+		// javadoc for why this is accepted rather than filtered out.
+		File classFile = FixtureCompiler.compileOne("MonitorFixture", """
+				public class MonitorFixture {
+				    public static void main(String[] args) {
+				        Object lock = new Object();
+				        synchronized (lock) {
+				            System.out.println("in block");
+				        }
+				    }
+				}
+				""");
+
+		List<SyncPoint> points = ClassScanner.scan(classFile, "MonitorFixture");
+
+		assertEquals(List.of(SyncPoint.Kind.SEM_ACQUIRE, SyncPoint.Kind.SEM_RELEASE, SyncPoint.Kind.SEM_RELEASE),
+				points.stream().map(p -> p.kind).toList());
+		assertEquals(List.of("MonitorFixture#main:0", "MonitorFixture#main:1", "MonitorFixture#main:2"),
+				points.stream().map(p -> p.edgeId).toList());
+	}
+
+	@Test
 	void aClassWithNoRecognizedPrimitivesYieldsNoSyncPoints() throws Exception {
 		File classFile = FixtureCompiler.compileOne("Plain", """
 				public class Plain {

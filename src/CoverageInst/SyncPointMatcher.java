@@ -104,6 +104,55 @@ public final class SyncPointMatcher {
 				&& descriptor.equals("()V");
 	}
 
+	public static boolean isMonitorEnter(int opcode) {
+		return opcode == Opcodes.MONITORENTER;
+	}
+
+	public static boolean isMonitorExit(int opcode) {
+		return opcode == Opcodes.MONITOREXIT;
+	}
+
+	/**
+	 * Opcode-only counterpart to matchKind, for `synchronized` blocks:
+	 * MONITORENTER/MONITOREXIT compile to a bare zero-operand instruction
+	 * with no owner/name/descriptor at all (unlike every other primitive
+	 * here, which arrives as a method-instruction call site), so they can't
+	 * share matchKind's four-argument shape - callers that walk raw
+	 * instructions (ClassInstrumenter's visitInsn, BasicBlockInstrumenter's
+	 * tree-API scans) check this alongside matchKind instead of folding it
+	 * in. Reuses the same SEM_ACQUIRE/SEM_RELEASE Kinds Lock and Semaphore
+	 * already produce - RequiredElementsGenerator's release<->acquire
+	 * pairing is already primitive-agnostic over Kind, so `synchronized`
+	 * needs no new Kind or downstream handling to participate in the same
+	 * IDENTITY coverage model.
+	 *
+	 * Known, deliberate limitation: a source-level `synchronized(obj){}`
+	 * block compiles to exactly one MONITORENTER but TWO MONITOREXIT
+	 * instructions (javac always adds a second, duplicate one inside a
+	 * synthetic catch-any handler whose only job is "release the lock, then
+	 * rethrow"). Both get their own edge id here, same as any other call
+	 * site - the exception-path one will essentially never fire in a
+	 * benchmark whose test cases don't throw while holding the lock. A
+	 * benchmark using `synchronized` should quarantine that edge id into
+	 * its own identityGroup (one no acquire edge shares) so
+	 * RequiredElementsGenerator never turns it into a required pairing -
+	 * the same over-approximate-then-narrow-via-groups pattern the `matrix`
+	 * benchmark's Semaphore identityGroups already rely on, not a new
+	 * mechanism. `synchronized` METHODS (the ACC_SYNCHRONIZED access flag)
+	 * are out of scope entirely - javac emits no MONITORENTER/MONITOREXIT
+	 * for those at all, so there is nothing for an opcode-based visitor to
+	 * hook.
+	 */
+	public static SyncPoint.Kind matchInsnKind(int opcode) {
+		if (isMonitorEnter(opcode)) {
+			return SyncPoint.Kind.SEM_ACQUIRE;
+		}
+		if (isMonitorExit(opcode)) {
+			return SyncPoint.Kind.SEM_RELEASE;
+		}
+		return null;
+	}
+
 	/**
 	 * Aggregate check for callers that only need "is this a numbered sync
 	 * point, and which Kind" (ControlFlowGraph) rather than which specific

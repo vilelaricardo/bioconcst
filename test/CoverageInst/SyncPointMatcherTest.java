@@ -134,4 +134,37 @@ class SyncPointMatcherTest {
 		assertNull(SyncPointMatcher.matchKind(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "append",
 				"(Ljava/lang/String;)Ljava/lang/StringBuilder;"));
 	}
+
+	@Test
+	void monitorEnterAndExitAreRecognizedByOpcodeAlone() {
+		// Unlike every other primitive here, synchronized(obj){} compiles to
+		// a bare zero-operand instruction - no owner/name/descriptor to
+		// check at all, so this is opcode-only, exercised through
+		// matchInsnKind rather than isLockLock-style four-arg predicates.
+		assertTrue(SyncPointMatcher.isMonitorEnter(Opcodes.MONITORENTER));
+		assertTrue(SyncPointMatcher.isMonitorExit(Opcodes.MONITOREXIT));
+		assertFalse(SyncPointMatcher.isMonitorEnter(Opcodes.MONITOREXIT));
+		assertFalse(SyncPointMatcher.isMonitorExit(Opcodes.MONITORENTER));
+	}
+
+	@Test
+	void matchInsnKindMapsMonitorEnterToAcquireAndMonitorExitToRelease() {
+		// synchronized reuses the exact same Kinds Lock/Semaphore/Condition
+		// already produce - RequiredElementsGenerator's release<->acquire
+		// pairing is primitive-agnostic over Kind, so no new Kind exists for
+		// this primitive.
+		assertEquals(SyncPoint.Kind.SEM_ACQUIRE, SyncPointMatcher.matchInsnKind(Opcodes.MONITORENTER));
+		assertEquals(SyncPoint.Kind.SEM_RELEASE, SyncPointMatcher.matchInsnKind(Opcodes.MONITOREXIT));
+	}
+
+	@Test
+	void matchInsnKindReturnsNullForAnyOtherOpcodeIncludingPseudoNodesSentinel() {
+		// -1 is the sentinel AbstractInsnNode.getOpcode() returns for
+		// pseudo instructions (labels/line-numbers/frames) in ASM's tree
+		// API - callers that walk raw instructions pass it through here
+		// unfiltered, so it must resolve to "not a sync point", not throw.
+		assertNull(SyncPointMatcher.matchInsnKind(-1));
+		assertNull(SyncPointMatcher.matchInsnKind(Opcodes.NOP));
+		assertNull(SyncPointMatcher.matchInsnKind(Opcodes.DUP));
+	}
 }

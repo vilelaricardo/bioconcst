@@ -109,6 +109,35 @@ class BasicBlockInstrumenterTest {
 	}
 
 	@Test
+	void monitorEnterAndExitAreMappedToBlocksJustLikeAnyOtherSyncPoint() throws Exception {
+		// Regression test for BasicBlockInstrumenter's own widened
+		// recognition (methodHasSyncPoint + the sync-edge re-identification
+		// loop) - MONITORENTER/MONITOREXIT are InsnNodes, not
+		// MethodInsnNodes, so this exercises a genuinely different code path
+		// than every Semaphore/Lock-based test above.
+		ClassResult result = instrument("MonitorFixture", """
+				public class MonitorFixture {
+				    public static void main(String[] args) {
+				        Object lock = new Object();
+				        synchronized (lock) {
+				            System.out.println("in block");
+				        }
+				    }
+				}
+				""");
+
+		assertEquals(3, result.syncEdgeBlocks.size(), "one MONITORENTER + two MONITOREXIT (normal + exception path)");
+		String acquireBlock = result.syncEdgeBlocks.get("MonitorFixture#main:0");
+		String normalReleaseBlock = result.syncEdgeBlocks.get("MonitorFixture#main:1");
+		assertTrue(acquireBlock != null && normalReleaseBlock != null,
+				"both edge ids must map to a block: " + result.syncEdgeBlocks);
+		assertEquals(acquireBlock, normalReleaseBlock,
+				"no branch between them - MONITORENTER and the normal-path MONITOREXIT sit in the same "
+						+ "straight-line block");
+		assertTrue(result.graphs.containsKey("MonitorFixture#main"));
+	}
+
+	@Test
 	void aMethodWithNoSyncPointIsSkippedEntirelyEvenWhenCalled() throws Exception {
 		// Regression guard for the busy-wait-loop overhead concern documented
 		// on instrumentMethod: a callee with no sync point of its own must

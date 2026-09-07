@@ -239,6 +239,77 @@ class ClassInstrumenterTest {
 	}
 
 	@Test
+	void injectsMonitorHooksAndSkipsTheUnreachedExceptionPathRelease() throws Exception {
+		// javac compiles synchronized(obj){} to one MONITORENTER but TWO
+		// MONITOREXIT (a normal-path one and a duplicate inside a synthetic
+		// catch-any "release, then rethrow" handler) - both get their own
+		// edge id (ClassScannerTest proves that statically), but since
+		// nothing throws here, only the normal-path release (edge :1) ever
+		// actually fires at runtime; the exception-path one (edge :2) is
+		// the documented, accepted double-edge-id wrinkle - see
+		// SyncPointMatcher.matchInsnKind's javadoc.
+		List<String> calls = runAndGetCalls("MonitorFixture", """
+				public class MonitorFixture {
+				    public static void main(String[] args) {
+				        Object lock = new Object();
+				        int x;
+				        synchronized (lock) {
+				            x = 1 + 1;
+				        }
+				        if (x != 2) {
+				            throw new AssertionError("expected real synchronized block to leave normal execution untouched, got x=" + x);
+				        }
+				    }
+				}
+				""");
+
+		assertEquals(List.of("afterSemaphoreAcquire:MonitorFixture#main:0",
+				"beforeSemaphoreRelease:MonitorFixture#main:1"), calls);
+	}
+
+	@Test
+	void synchronizedBlockPreservesRealMutualExclusionUnderConcurrentAccess() throws Exception {
+		// Regression test for the actual point of instrumenting synchronized
+		// at all: the DUP-based hook injection must not corrupt the real
+		// MONITORENTER/MONITOREXIT pairing. Two threads race to increment a
+		// plain (non-atomic) shared counter inside the instrumented block -
+		// a lost update would only be possible if instrumentation broke the
+		// real locking.
+		List<String> calls = runAndGetCalls("RaceFixture", """
+				public class RaceFixture {
+				    static int counter = 0;
+				    static final Object lock = new Object();
+
+				    static void increment() {
+				        for (int i = 0; i < 20000; i++) {
+				            synchronized (lock) {
+				                counter++;
+				            }
+				        }
+				    }
+
+				    public static void main(String[] args) throws InterruptedException {
+				        Thread t1 = new Thread(RaceFixture::increment);
+				        Thread t2 = new Thread(RaceFixture::increment);
+				        t1.start();
+				        t2.start();
+				        t1.join();
+				        t2.join();
+				        if (counter != 40000) {
+				            throw new AssertionError(
+				                    "expected real mutual exclusion to survive instrumentation, got counter=" + counter);
+				        }
+				    }
+				}
+				""");
+
+		long acquireCount = calls.stream().filter(c -> c.startsWith("afterSemaphoreAcquire:RaceFixture#")).count();
+		long releaseCount = calls.stream().filter(c -> c.startsWith("beforeSemaphoreRelease:RaceFixture#")).count();
+		assertEquals(40000, acquireCount);
+		assertEquals(40000, releaseCount);
+	}
+
+	@Test
 	void aProcessWithNoRecognizedPrimitivesInvokesNoHooksAtAll() throws Exception {
 		List<String> calls = runAndGetCalls("Plain", """
 				public class Plain {

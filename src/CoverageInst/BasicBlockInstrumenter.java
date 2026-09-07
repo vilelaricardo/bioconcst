@@ -192,6 +192,12 @@ public final class BasicBlockInstrumenter {
 					&& SyncPointMatcher.matchKind(min.getOpcode(), min.owner, min.name, min.desc) != null) {
 				return true;
 			}
+			// synchronized(obj){...} - MONITORENTER/MONITOREXIT are bare
+			// InsnNodes, never a MethodInsnNode; a pseudo node (label/line/
+			// frame) reports opcode -1, which matchInsnKind safely rejects.
+			if (SyncPointMatcher.matchInsnKind(insn.getOpcode()) != null) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -291,10 +297,19 @@ public final class BasicBlockInstrumenter {
 		// still refer to the untouched instruction array) - map each edge id
 		// (same numbering ClassInstrumenter itself used) to its block.
 		for (int i = 0; i < n; i++) {
-			if (!(insns[i] instanceof MethodInsnNode min)) {
-				continue;
+			AbstractInsnNode insn = insns[i];
+			SyncPoint.Kind kind;
+			if (insn instanceof MethodInsnNode min) {
+				kind = SyncPointMatcher.matchKind(min.getOpcode(), min.owner, min.name, min.desc);
+			} else {
+				// synchronized(obj){...} - checked in the same index-ordered
+				// pass as MethodInsnNode primitives above (not a separate
+				// loop) so the counter increments in true bytecode order,
+				// matching exactly how ClassInstrumenter's single streaming
+				// visitor assigns ids regardless of which callback
+				// (visitMethodInsn vs visitInsn) produced them.
+				kind = SyncPointMatcher.matchInsnKind(insn.getOpcode());
 			}
-			SyncPoint.Kind kind = SyncPointMatcher.matchKind(min.getOpcode(), min.owner, min.name, min.desc);
 			if (kind == null) {
 				continue;
 			}
