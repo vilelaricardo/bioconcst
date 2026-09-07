@@ -3,6 +3,8 @@ package BioConcST;
 import java.util.List;
 import java.util.Map;
 
+import CoverageInst.GraphDistance.ChainedSource;
+
 /**
  * Declares everything CoverageInst needs beyond what BenchmarkConfig already
  * has (testSetupProcesses, argumentRanges, path) to run strategy
@@ -37,6 +39,20 @@ public class CoverageInstConfig {
 	// link allows keeps pairing with every receive point, as today).
 	public Map<String, List<Integer>> fixedMessageSources;
 
+	// senderEdgeId -> the receiver edges (and, per receiver edge, which
+	// OTHER sender edge to borrow a numeric gradient from) to consult when
+	// this edge's own divergence block has no locally-recognized numeric
+	// predicate - the cross-process "flag problem" case, e.g. a
+	// String#equals-gated send whose condition is fed by another
+	// process's message payload rather than a local branch. At evaluation
+	// time, for each declared source we look up which process ACTUALLY
+	// sent to viaReceiverEdge in this execution, then recursively reuse
+	// that process's own GraphDistance for targetSenderEdge instead of a
+	// flat penalty. Optional - defaults to none declared (identical to
+	// today's flat-fallback behavior). See GraphDistance.compute's javadoc
+	// for the full mechanism and its scope limits.
+	public Map<String, List<ChainedSource>> chainedDistance;
+
 	// edgeId -> arbitrary group name, for same-process shared-identity
 	// primitives (Semaphore/Lock/Condition/CyclicBarrier) when a process has
 	// more than one distinct object of that kind. Optional - defaults to
@@ -44,4 +60,12 @@ public class CoverageInstConfig {
 	// pairs freely, correct whenever there's only one such object, which is
 	// the common case).
 	public Map<String, String> identityGroups;
+
+	// Optional, defaults to false/null (baseline genotype unchanged): when
+	// true, CoverageInstStrategy appends one extra IntegerGene per detected
+	// RacePoint (see CoverageInst.RacePoints.detect) to the genotype, and
+	// registers RaceChoiceMutator to mutate it - letting the GA itself
+	// evolve which sender should win an ambiguous receive, instead of
+	// leaving that entirely to OS/JVM scheduling luck across generations.
+	public Boolean raceGene;
 }

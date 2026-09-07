@@ -77,7 +77,8 @@ public class ReplayMain {
 		}
 		Topology topology = new Topology(roleLinks, ci.fixedMessageTargets != null ? ci.fixedMessageTargets : Map.of(),
 				ci.fixedMessageSources != null ? ci.fixedMessageSources : Map.of(),
-				ci.identityGroups != null ? ci.identityGroups : Map.of());
+				ci.identityGroups != null ? ci.identityGroups : Map.of(),
+				ci.chainedDistance != null ? ci.chainedDistance : Map.of());
 		List<RequiredEdge> required = RequiredElementsGenerator.generate(processes, topology);
 
 		File scheduleFile = new File(workDir, "replay-schedule.txt");

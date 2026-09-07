@@ -56,7 +56,7 @@ class CoverageInstRunTest {
 		// this is a same-process identity pairing.
 		ProcessInstance process = ClassScanner.scanProcess(new File(workDir, "compiled"), 0, "Solo", List.of("Solo"));
 		List<RequiredEdge> required = RequiredElementsGenerator.generate(List.of(process),
-				new Topology(List.of(), Map.of(), Map.of(), Map.of()));
+				new Topology(List.of(), Map.of(), Map.of(), Map.of(), Map.of()));
 		assertEquals(1, required.size(), "acquire+release in one process is exactly one identity edge");
 
 		TestCaseResult result = run.runTestCase(0, List.of(new ProcessLaunchSpec(0, "Solo", new String[0])), 10_000);

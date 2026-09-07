@@ -18,10 +18,13 @@ import CoverageInst.ClassScanner;
 import CoverageInst.CoverageInstRun;
 import CoverageInst.PcfgVisualizer;
 import CoverageInst.ProcessInstance;
+import CoverageInst.RacePoint;
+import CoverageInst.RacePoints;
 import CoverageInst.RequiredEdge;
 import CoverageInst.RequiredElementsGenerator;
 import CoverageInst.RoleLink;
 import CoverageInst.Topology;
+import io.jenetics.Alterer;
 import io.jenetics.Chromosome;
 import io.jenetics.Genotype;
 import io.jenetics.IntegerChromosome;
@@ -82,7 +85,8 @@ public class CoverageInstStrategy implements SearchStrategy {
 			Topology topology = new Topology(roleLinks,
 					ci.fixedMessageTargets != null ? ci.fixedMessageTargets : Map.of(),
 					ci.fixedMessageSources != null ? ci.fixedMessageSources : Map.of(),
-					ci.identityGroups != null ? ci.identityGroups : Map.of());
+					ci.identityGroups != null ? ci.identityGroups : Map.of(),
+					ci.chainedDistance != null ? ci.chainedDistance : Map.of());
 
 			File workDir = new File("./cov-experiment-" + benchmark.name);
 			org.apache.commons.io.FileUtils.deleteQuietly(workDir);
@@ -100,36 +104,91 @@ public class CoverageInstStrategy implements SearchStrategy {
 
 			List<RequiredEdge> required = RequiredElementsGenerator.generate(processes, topology);
 
+			// Race points (ambiguous receives with >1 legitimate sender) are
+			// detected once here, from data RequiredElementsGenerator already
+			// computed - see RacePoints.detect's own javadoc. Left empty
+			// (default) whenever coverageInst.raceGene isn't explicitly
+			// true, which keeps every downstream genotype/Engine change in
+			// this method a no-op for the baseline case.
+			List<RacePoint> racePoints = Boolean.TRUE.equals(ci.raceGene) ? RacePoints.detect(required) : List.of();
+
 			int execTimeLimitMs = benchmark.execTimeLimitMs != null ? benchmark.execTimeLimitMs
 					: BenchmarkConfig.DEFAULT_EXEC_TIME_LIMIT_MS;
-			CoverageInstFitnessFunction fitnessFn = new CoverageInstFitnessFunction(run,
-					benchmark.testSetupProcesses, required, processIds, execTimeLimitMs);
 
-			Genotype<IntegerGene> genotype;
+			List<IntegerChromosome> chromosomes = new ArrayList<>();
 			if (benchmark.argumentRanges != null && !benchmark.argumentRanges.isEmpty()) {
-				IntegerChromosome[] chromosomes = new IntegerChromosome[benchmark.argumentRanges.size()];
 				for (int i = 0; i < benchmark.argumentRanges.size(); i++) {
-					chromosomes[i] = IntegerChromosome.of(benchmark.argumentRanges.get(i).min,
-							benchmark.argumentRanges.get(i).max, 1);
+					chromosomes.add(IntegerChromosome.of(benchmark.argumentRanges.get(i).min,
+							benchmark.argumentRanges.get(i).max, 1));
 				}
-				genotype = Genotype.of(chromosomes[0],
-						java.util.Arrays.copyOfRange(chromosomes, 1, chromosomes.length));
 			} else {
-				genotype = Genotype.of(IntegerChromosome.of(ga.min, ga.max, benchmark.argumentsLength));
+				chromosomes.add(IntegerChromosome.of(ga.min, ga.max, benchmark.argumentsLength));
 			}
+			// Gene count, NOT chromosome count: the argumentRanges branch
+			// above builds one single-gene chromosome PER ARGUMENT (so the
+			// two counts coincide there), but the plain-argumentsLength
+			// branch builds exactly ONE chromosome containing
+			// `argumentsLength` genes - using chromosomes.size() there
+			// undercounts to 1 regardless of argumentsLength, truncating
+			// buildLaunchSpecs' TESTDATA substitution to a single value and
+			// breaking every benchmark using that branch (confirmed: this
+			// silently regressed gcdmaster to 100% process-timeout fitness
+			// this session - GcdMaster.java:59 ArrayIndexOutOfBoundsException
+			// from receiving 1 arg instead of 3 - before this fix).
+			int inputGeneCountSum = 0;
+			for (IntegerChromosome chromosome : chromosomes) {
+				inputGeneCountSum += chromosome.length();
+			}
+			final int inputGeneCount = inputGeneCountSum;
+			for (RacePoint racePoint : racePoints) {
+				// IntegerChromosome.of(min, max, length) treats max as
+				// EXCLUSIVE (confirmed empirically this session via
+				// DebugChromosomeRange: of(0,1,1) generated only 0, never 1,
+				// across 1000 samples) - candidateSenderIds.size() itself
+				// (not size()-1) is the correct exclusive upper bound for a
+				// valid index range of [0, size()-1]. Using size()-1 here
+				// silently locked every race gene to 0 forever (confirmed:
+				// every champion in every pilot execution had race gene 0).
+				chromosomes.add(IntegerChromosome.of(0, Math.max(1, racePoint.candidateSenderIds.size()), 1));
+			}
+			Genotype<IntegerGene> genotype = Genotype.of(chromosomes.get(0),
+					chromosomes.subList(1, chromosomes.size()).toArray(new IntegerChromosome[0]));
+
+			OllamaRaceOracle oracle = null;
+			if (!racePoints.isEmpty() && ga.ollamaEndpoint != null && !ga.ollamaEndpoint.isBlank()) {
+				oracle = new OllamaRaceOracle(ga.ollamaEndpoint, ga.ollamaModel, ga.ollamaTimeoutMs);
+			}
+			CoverageInstFitnessFunction fitnessFn = new CoverageInstFitnessFunction(run,
+					benchmark.testSetupProcesses, required, processIds, execTimeLimitMs, racePoints, inputGeneCount,
+					topology.chainedDistance);
 
 			Problem<Genotype<IntegerGene>, IntegerGene, TestFitness> problem = Problem.of(fitnessFn::evaluate,
 					Codec.of(genotype, gt -> gt));
 
-			Selector<IntegerGene, TestFitness> survivorsSelector = new FuzzySelector<>();
-			Selector<IntegerGene, TestFitness> offspringSelector = new FuzzySelector<>();
+			// RQ2.1-replication knob (2026-09-06): the 2022 paper found no
+			// significant difference between FuzzyST and Elitism (RQ2.1) -
+			// "true" swaps both selectors for Jenetics' own built-in
+			// EliteSelector (truncation-select the elite, per its default
+			// non-elite selector for the rest) to re-check whether that
+			// still holds under CoverageInst. Off by default.
+			boolean useElitism = "true".equals(System.getProperty("coverage.useElitism"));
+			Selector<IntegerGene, TestFitness> survivorsSelector = useElitism ? new io.jenetics.EliteSelector<>()
+					: new FuzzySelector<>();
+			Selector<IntegerGene, TestFitness> offspringSelector = useElitism ? new io.jenetics.EliteSelector<>()
+					: new FuzzySelector<>();
 
 			// Hall-of-fame first, dedup second - see BioConcSTCore.generatorEvolution()
 			// for why the order matters.
 			EvolutionInterceptor<IntegerGene, TestFitness> uniqueInterceptor = EvolutionResult.toUniquePopulation();
 			EvolutionInterceptor<IntegerGene, TestFitness> hallOfFameInterceptor = HallOfFame.interceptor();
-			EvolutionInterceptor<IntegerGene, TestFitness> combinedInterceptor = EvolutionInterceptor
-					.ofAfter(result -> uniqueInterceptor.after(hallOfFameInterceptor.after(result)));
+			// RQ1 pilot knob (2026-09-06): "true" reproduces the pre-30c74e5
+			// behavior (dedup only, no hall-of-fame injection) for a real
+			// before/after comparison against the published-paper baseline -
+			// see research_questions.md. Off by default, so every other run
+			// this session is unaffected.
+			boolean disableHallOfFame = "true".equals(System.getProperty("coverage.disableHallOfFame"));
+			EvolutionInterceptor<IntegerGene, TestFitness> combinedInterceptor = disableHallOfFame ? uniqueInterceptor
+					: EvolutionInterceptor.ofAfter(result -> uniqueInterceptor.after(hallOfFameInterceptor.after(result)));
 
 			final ExecutorService executor = Executors.newFixedThreadPool(ga.threadExecutors);
 
@@ -149,36 +208,66 @@ public class CoverageInstStrategy implements SearchStrategy {
 			File progressDir = new File(workDir, "pcfg-progress");
 			ObjectMapper mapper = new ObjectMapper();
 
+			// Same three base alterers regardless of raceGene - RaceChoiceMutator
+			// (appended below, only when there are race points) is additive:
+			// it only ever touches the race-gene loci it's given the index
+			// of, so it can't interfere with SwapMutator/Mutator/
+			// SinglePointCrossover's handling of the input-data loci.
+			List<Alterer<IntegerGene, TestFitness>> alterers = new ArrayList<>(List.of(
+					// SwapMutator alone is a documented no-op on any
+					// length-1 chromosome (Jenetics' own source:
+					// SwapMutator.mutate() short-circuits to "0
+					// mutations" whenever chromosome.length() <= 1) -
+					// and benchmark.argumentRanges (used whenever
+					// arguments need per-argument bounds, e.g.
+					// quorum-handshake's two independent [0,1000]
+					// values) builds ONE single-gene chromosome PER
+					// ARGUMENT. Without Mutator here, the population's
+					// achievable numeric values are permanently fixed at
+					// whatever random values existed in the initial
+					// population - crossover can only recombine them,
+					// never introduce a new one - which silently caps
+					// how well the search can do on any narrow-window
+					// requirement (confirmed empirically: quorum-
+					// handshake's celebrate branch, gated on both
+					// peers' values landing in a 4%-wide window,
+					// depended entirely on whether generation 0's
+					// random seed happened to already contain a lucky
+					// value in each slot, independent of how good the
+					// fitness gradient - see GraphDistance/BranchDistance
+					// - actually is).
+					new SwapMutator<>(ga.mutationRate), new Mutator<>(ga.mutationRate),
+					new SinglePointCrossover<>(ga.crossoverRate)));
+			RaceChoiceMutator raceChoiceMutator = null;
+			if (!racePoints.isEmpty()) {
+				// coveredEdgeKeysSoFar (declared above, shared with
+				// updateProgressVisualization's .peek() below) - NOT each
+				// individual's own phenotype.fitness(), which is frequently
+				// UNAVAILABLE here: SwapMutator/Mutator/SinglePointCrossover
+				// all run before this alterer in the same chain, and any of
+				// them touching a phenotype invalidates its fitness until
+				// the Engine re-evaluates the whole altered population next.
+				// Relying on the per-individual fitness left the LLM path
+				// starved (confirmed empirically: with mutationRate=0.1 and
+				// crossoverRate=0.6, most individuals reaching this alterer
+				// already had no assigned fitness, so "uncovered" always
+				// computed empty and the mutator silently fell back to
+				// random on nearly every attempt). The cumulative,
+				// always-available union set is both more robust and a
+				// better signal anyway (it targets what the WHOLE search
+				// still hasn't found, not just one individual's last run).
+				raceChoiceMutator = new RaceChoiceMutator(ga.raceMutationRate, racePoints, inputGeneCount,
+						coveredEdgeKeysSoFar, ga.raceLlmProbability, oracle, benchmark.testSetupProcesses, filesPath);
+				alterers.add(raceChoiceMutator);
+			}
+
 			ISeq<Phenotype<IntegerGene, TestFitness>> results;
 			try {
 				Engine<IntegerGene, TestFitness> engine = Engine.builder(problem).minimizing()
 						.survivorsFraction(ga.survivorsFraction).offspringFraction(ga.offspringFraction)
 						.survivorsSelector(survivorsSelector).offspringSelector(offspringSelector)
 						.populationSize(ga.populationSize)
-						// SwapMutator alone is a documented no-op on any
-						// length-1 chromosome (Jenetics' own source:
-						// SwapMutator.mutate() short-circuits to "0
-						// mutations" whenever chromosome.length() <= 1) -
-						// and benchmark.argumentRanges (used whenever
-						// arguments need per-argument bounds, e.g.
-						// quorum-handshake's two independent [0,1000]
-						// values) builds ONE single-gene chromosome PER
-						// ARGUMENT. Without Mutator here, the population's
-						// achievable numeric values are permanently fixed at
-						// whatever random values existed in the initial
-						// population - crossover can only recombine them,
-						// never introduce a new one - which silently caps
-						// how well the search can do on any narrow-window
-						// requirement (confirmed empirically: quorum-
-						// handshake's celebrate branch, gated on both
-						// peers' values landing in a 4%-wide window,
-						// depended entirely on whether generation 0's
-						// random seed happened to already contain a lucky
-						// value in each slot, independent of how good the
-						// fitness gradient - see GraphDistance/BranchDistance
-						// - actually is).
-						.alterers(new SwapMutator<>(ga.mutationRate), new Mutator<>(ga.mutationRate),
-								new SinglePointCrossover<>(ga.crossoverRate))
+						.alterers(alterers.get(0), alterers.subList(1, alterers.size()).toArray(new Alterer[0]))
 						.executor(executor).interceptor(combinedInterceptor).build();
 
 				results = engine.stream().limit(Limits.byFixedGeneration(ga.generations)).peek(statistics)
@@ -191,15 +280,54 @@ public class CoverageInstStrategy implements SearchStrategy {
 							}
 							updateProgressVisualization(result.population(), required, processes, run, mapper,
 									coveredEdgeKeysSoFar, progressDir);
+							if (!racePoints.isEmpty() && "true".equals(System.getProperty("coverage.debugRaceGene"))) {
+								java.util.Map<Integer, Integer> counts = new java.util.TreeMap<>();
+								for (Phenotype<IntegerGene, TestFitness> ind : result.population()) {
+									int value = ind.genotype().get(inputGeneCount).get(0).allele();
+									counts.merge(value, 1, Integer::sum);
+								}
+								System.out.println("gen=" + result.generation() + " raceGeneCounts=" + counts);
+							}
+							// FCL recalibration data-gathering (2026-09-06): dumps
+							// EVERY individual's distance/coverage (not just the
+							// per-generation best that ResultsWriter already
+							// records), since FuzzySelector.testDataSuvivor(...)
+							// is called once per population member during
+							// selection - the per-generation-best CSV alone
+							// under-samples the high-distance tail (poor/failed
+							// individuals) that the FIS must also discriminate
+							// among. Off by default; appends one CSV line per
+							// individual per generation when set.
+							String dumpPath = System.getProperty("coverage.dumpFitnessSamples");
+							if (dumpPath != null) {
+								try {
+									StringBuilder sb = new StringBuilder();
+									for (Phenotype<IntegerGene, TestFitness> ind : result.population()) {
+										sb.append(benchmark.name).append(',').append(result.generation()).append(',')
+												.append(ind.fitness().getDistance()).append(',')
+												.append(ind.fitness().getCoverage()).append('\n');
+									}
+									java.nio.file.Files.writeString(java.nio.file.Path.of(dumpPath), sb.toString(),
+											java.nio.file.StandardOpenOption.CREATE,
+											java.nio.file.StandardOpenOption.APPEND);
+								} catch (java.io.IOException e) {
+									System.err.println("coverage.dumpFitnessSamples write failed (non-fatal): " + e);
+								}
+							}
 						}).map(EvolutionResult::bestPhenotype).collect(ISeq.toISeq());
 			} finally {
 				executor.shutdown();
 			}
 
+			if (raceChoiceMutator != null) {
+				System.out.println("CoverageInstStrategy: RaceChoiceMutator for " + benchmark.name + " - LLM calls succeeded="
+						+ raceChoiceMutator.llmSuccessCount() + ", fell back to random=" + raceChoiceMutator.llmFallbackCount());
+			}
+
 			SolutionResult solutionResult = new SolutionResult(syncCoverageHistory, statistics, results,
 					bestPopulation.get());
-			solutionResult.setReplayBundles(
-					captureReplayBundles(bestPopulation.get(), benchmark.testSetupProcesses, required, mapper));
+			solutionResult.setReplayBundles(captureReplayBundles(bestPopulation.get(), benchmark.testSetupProcesses,
+					required, mapper, inputGeneCount));
 			return solutionResult;
 		} catch (IOException e) {
 			throw new RuntimeException("CoverageInstStrategy failed to prepare " + benchmark.name, e);
@@ -254,13 +382,14 @@ public class CoverageInstStrategy implements SearchStrategy {
 	// with the schedule that reproduces the EXACT execution CoverageInst
 	// measured its coverage from (see CoverageInst.ReplayMain).
 	private static List<ReplayBundle> captureReplayBundles(ISeq<Phenotype<IntegerGene, TestFitness>> population,
-			List<ProcessSpec> testSetupProcesses, List<RequiredEdge> required, ObjectMapper mapper) {
+			List<ProcessSpec> testSetupProcesses, List<RequiredEdge> required, ObjectMapper mapper,
+			int inputGeneCount) {
 		List<ReplayBundle> bundles = new ArrayList<>();
 		for (Phenotype<IntegerGene, TestFitness> phenotype : population) {
 			Genotype<IntegerGene> genotype = phenotype.genotype();
 			TestFitness fitness = phenotype.fitness();
 			List<CoverageInstRun.ProcessLaunchSpec> launchSpecs = CoverageInstFitnessFunction
-					.buildLaunchSpecs(genotype, testSetupProcesses);
+					.buildLaunchSpecs(genotype, testSetupProcesses, inputGeneCount);
 
 			int coveredCount = 0;
 			try {

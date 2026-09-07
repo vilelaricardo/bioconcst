@@ -37,7 +37,7 @@ class RequiredElementsGeneratorTest {
 
 	private static Topology topology(List<RoleLink> links, Map<String, Integer> targets,
 			Map<String, List<Integer>> sources, Map<String, String> groups) {
-		return new Topology(links, targets, sources, groups);
+		return new Topology(links, targets, sources, groups, Map.of());
 	}
 
 	private static Set<String> asStrings(List<RequiredEdge> edges) {

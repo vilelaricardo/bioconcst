@@ -56,6 +56,16 @@ public final class CoverageEvaluator {
 		 * a single-operand (IFxx-against-zero) predicate. See BranchDistance.
 		 */
 		public final Map<Integer, Map<String, int[]>> observedOperandsByProcess = new HashMap<>();
+		/**
+		 * Per receiving process, which processId actually sent the packet
+		 * that satisfied a given receive edge in THIS execution - keyed by
+		 * receiverProcessId then receiverEdgeId. This is the exact same
+		 * correlation already used below to decide MESSAGE-edge coverage
+		 * (a receive Fact's own correlation field), just also copied out
+		 * here instead of being discarded once matching is done - see
+		 * GraphDistance's chainedDistance mechanism, the only consumer.
+		 */
+		public final Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = new HashMap<>();
 
 		Result(int totalRequired) {
 			this.totalRequired = totalRequired;
@@ -100,7 +110,16 @@ public final class CoverageEvaluator {
 				Fact fact = new Fact(processId, edgeId, correlation);
 				switch (event) {
 				case "SEND" -> sends.add(fact);
-				case "RECEIVE" -> receives.add(fact);
+				case "RECEIVE" -> {
+					receives.add(fact);
+					try {
+						int senderProcessId = Integer.parseInt(correlation);
+						result.observedSenderByReceiveEdge.computeIfAbsent(processId, k -> new HashMap<>())
+								.put(edgeId, senderProcessId);
+					} catch (NumberFormatException notResolved) {
+						// "UNKNOWN..." or similar - nothing to record.
+					}
+				}
 				case "SEM_RELEASE", "SEM_ACQUIRE", "BARRIER" -> identityEvents.add(fact);
 				case "NODE" -> result.observedNodesByProcess.computeIfAbsent(processId, k -> new HashSet<>())
 						.add(edgeId);

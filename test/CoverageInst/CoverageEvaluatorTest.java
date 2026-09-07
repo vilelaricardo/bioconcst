@@ -141,6 +141,28 @@ class CoverageEvaluatorTest {
 	}
 
 	@Test
+	void observedSenderByReceiveEdgeRecordsTheRealResolvedSenderPerReceive() throws Exception {
+		// Same correlation data already used to decide MESSAGE-edge coverage
+		// (a receive's own resolved sender processId) - GraphDistance's
+		// chainedDistance mechanism is the only consumer of this field, see
+		// GraphDistanceTest's chained-distance cases.
+		File dir = traceDir(null, "RECEIVE B#main:0 1\n");
+
+		Result result = CoverageEvaluator.evaluate(List.of(), dir, List.of(0, 1));
+
+		assertEquals(1, result.observedSenderByReceiveEdge.get(1).get("B#main:0"));
+	}
+
+	@Test
+	void observedSenderByReceiveEdgeSkipsAnUnresolvedRegistryLookup() throws Exception {
+		File dir = traceDir("RECEIVE B#main:0 UNKNOWN(127.0.0.1:9999)\n");
+
+		Result result = CoverageEvaluator.evaluate(List.of(), dir, List.of(0));
+
+		assertTrue(result.observedSenderByReceiveEdge.getOrDefault(0, java.util.Map.of()).isEmpty());
+	}
+
+	@Test
 	void nodeAndBranchEventsAreCapturedForGraphDistance() throws Exception {
 		File dir = traceDir("NODE Fixture#main:B0 -\nBRANCH1 Fixture#main:B0 7\nBRANCH2 Fixture#main:B1 3,9\n");
 

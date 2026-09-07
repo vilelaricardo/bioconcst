@@ -145,6 +145,79 @@ class GraphDistanceTest {
 	}
 
 	@Test
+	void chainedDistanceBorrowsTheRealSendersSideDistanceInsteadOfTheFlatPenalty() {
+		// Outer edge under test: identical shape to
+		// divergingWithNoRecognizedPredicateFallsBackToTheFlatPenalty (no
+		// recognized predicate at "P#main:B0" for process 0) - but this time
+		// chainedDistance declares that "P#main:0" should instead borrow
+		// process 7's own sideDistance for "R#main:9", simulating the
+		// cross-process "flag problem" (a String#equals-gated send fed by
+		// another process's message payload, e.g. Coordinator's celebrate
+		// check fed by a Peer's own window-check outcome).
+		ControlFlowGraph outerGraph = new ControlFlowGraph("P#main:B0", Map.of("P#main:B0",
+				java.util.List.of("P#main:B1", "P#main:B2"), "P#main:B1", java.util.List.of(), "P#main:B2",
+				java.util.List.of()));
+		// The "real sender" (process 7) has its own, separate graph with a
+		// genuine recognized numeric predicate - exact same shape/operands
+		// as divergingAtARecognizedNumericPredicateUsesBranchDistanceForThatStep,
+		// whose send-side sub-result (3/7) is already independently verified
+		// there, so this test composes two already-proven formulas instead
+		// of inventing a new expected number from scratch.
+		ControlFlowGraph chainedGraph = new ControlFlowGraph("R#main:B0", Map.of("R#main:B0",
+				java.util.List.of("R#main:B1", "R#main:B2"), "R#main:B1", java.util.List.of(), "R#main:B2",
+				java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", outerGraph, "R#main", chainedGraph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B1", "P#main:1", "P#main:B0", "R#main:9",
+				"R#main:B1");
+		Map<String, Integer> branchPredicates = Map.of("R#main:B0", Opcodes.IF_ICMPLT);
+		Map<Integer, Set<String>> observed = Map.of(0, Set.of("P#main:B0"), 7, Set.of("R#main:B0"));
+		Map<Integer, Map<String, int[]>> operands = Map.of(7, Map.of("R#main:B0", new int[] { 10, 5 }));
+		RequiredEdge edge = messageEdge("P#main:0", "P#main:1");
+
+		Map<String, java.util.List<GraphDistance.ChainedSource>> chainedDistance = Map.of("P#main:0",
+				java.util.List.of(new GraphDistance.ChainedSource("VoteEdge", "R#main:9")));
+		// Process 0 (the receiver in the outer edge) actually received the
+		// payload that satisfied "VoteEdge" from process 7 in this
+		// execution - the same correlation CoverageEvaluator.Result already
+		// resolves for free while checking MESSAGE-edge coverage.
+		Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = Map.of(0, Map.of("VoteEdge", 7));
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, branchPredicates, observed, operands,
+				observedSenderByReceiveEdge, chainedDistance);
+
+		// send side borrows R#main:9's sideDistance for process 7 (3/7,
+		// verified independently above) as its divergence contribution:
+		// (missingCount=1, -1 + 3/7) / path.size()=2 = (3/7)/2 = 3/14.
+		// Receive side targets the entry block itself, observed -> 0.0.
+		// Overall: (3/14 + 0) / 2 = 3/28.
+		assertEquals(3.0 / 28.0, distance, 1e-9);
+	}
+
+	@Test
+	void chainedDistanceFallsBackToTheFlatPenaltyWhenTheRealSenderWasNeverObserved() {
+		// Same declared chainedDistance as the test above, but the receive
+		// it depends on ("VoteEdge") never happened in THIS execution's
+		// trace (observedSenderByReceiveEdge has no entry for it) - must
+		// fall back to the exact same flat penalty as
+		// divergingWithNoRecognizedPredicateFallsBackToTheFlatPenalty,
+		// never crash or silently treat it as covered.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0", Map.of("P#main:B0",
+				java.util.List.of("P#main:B1", "P#main:B2"), "P#main:B1", java.util.List.of(), "P#main:B2",
+				java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B1", "P#main:1", "P#main:B0");
+		Map<Integer, Set<String>> observed = Map.of(0, Set.of("P#main:B0"));
+		RequiredEdge edge = messageEdge("P#main:0", "P#main:1");
+		Map<String, java.util.List<GraphDistance.ChainedSource>> chainedDistance = Map.of("P#main:0",
+				java.util.List.of(new GraphDistance.ChainedSource("VoteEdge", "R#main:9")));
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, NO_PREDICATES, observed, NO_OPERANDS,
+				Map.of(), chainedDistance);
+
+		assertEquals(0.25, distance);
+	}
+
+	@Test
 	void computeAveragesTheSendAndReceiveSidesEqually() {
 		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
 				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));

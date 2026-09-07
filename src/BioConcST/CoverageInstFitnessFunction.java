@@ -1,13 +1,17 @@
 package BioConcST;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import CoverageInst.CoverageEvaluator;
 import CoverageInst.CoverageInstRun;
 import CoverageInst.GraphDistance;
+import CoverageInst.GraphDistance.ChainedSource;
+import CoverageInst.RacePoint;
 import CoverageInst.ReplaySchedule;
 import CoverageInst.RequiredEdge;
 import io.jenetics.Chromosome;
@@ -34,15 +38,49 @@ public final class CoverageInstFitnessFunction {
 	private final List<RequiredEdge> required;
 	private final List<Integer> processIds;
 	private final int execTimeLimitMs;
+	private final List<RacePoint> racePoints;
+	private final int inputGeneCount;
+	private final Map<String, List<ChainedSource>> chainedDistance;
 	private final AtomicInteger testIdCounter = new AtomicInteger(0);
 
 	public CoverageInstFitnessFunction(CoverageInstRun run, List<ProcessSpec> testSetupProcesses,
 			List<RequiredEdge> required, List<Integer> processIds, int execTimeLimitMs) {
+		this(run, testSetupProcesses, required, processIds, execTimeLimitMs, List.of(), 0, Map.of());
+	}
+
+	/**
+	 * racePoints/inputGeneCount are empty/0 for every benchmark that doesn't
+	 * opt into coverageInst.raceGene - see CoverageInstStrategy, the only
+	 * caller. inputGeneCount marks where the input-data chromosomes end and
+	 * the race-choice chromosomes (one per racePoints element, appended in
+	 * the same order) begin in the flat Genotype - needed so
+	 * buildLaunchSpecs never substitutes a race gene's value into a
+	 * TESTDATA placeholder.
+	 */
+	public CoverageInstFitnessFunction(CoverageInstRun run, List<ProcessSpec> testSetupProcesses,
+			List<RequiredEdge> required, List<Integer> processIds, int execTimeLimitMs, List<RacePoint> racePoints,
+			int inputGeneCount) {
+		this(run, testSetupProcesses, required, processIds, execTimeLimitMs, racePoints, inputGeneCount, Map.of());
+	}
+
+	/**
+	 * chainedDistance is empty for every benchmark that doesn't declare
+	 * coverageInst.chainedDistance - see Topology's own javadoc and
+	 * GraphDistance.compute's javadoc for the full mechanism (cross-process
+	 * "flag problem" gradient for a MESSAGE edge with no local numeric
+	 * predicate of its own).
+	 */
+	public CoverageInstFitnessFunction(CoverageInstRun run, List<ProcessSpec> testSetupProcesses,
+			List<RequiredEdge> required, List<Integer> processIds, int execTimeLimitMs, List<RacePoint> racePoints,
+			int inputGeneCount, Map<String, List<ChainedSource>> chainedDistance) {
 		this.run = run;
 		this.testSetupProcesses = testSetupProcesses;
 		this.required = required;
 		this.processIds = processIds;
 		this.execTimeLimitMs = execTimeLimitMs;
+		this.racePoints = racePoints;
+		this.inputGeneCount = inputGeneCount;
+		this.chainedDistance = chainedDistance;
 	}
 
 	/**
@@ -51,13 +89,22 @@ public final class CoverageInstFitnessFunction {
 	 * individual's exported test input is built the exact same way it was
 	 * built during the search that found it - not a second, potentially
 	 * drifting implementation of the same substitution rule.
+	 *
+	 * inputGeneCount caps how many leading genes count as real test-input
+	 * data - any trailing race-choice genes (see RacePoints.detect) must
+	 * never leak into a benchmark's TESTDATA/TESTDATA&lt;n&gt; args.
 	 */
 	public static List<CoverageInstRun.ProcessLaunchSpec> buildLaunchSpecs(Genotype<IntegerGene> genotype,
-			List<ProcessSpec> testSetupProcesses) {
+			List<ProcessSpec> testSetupProcesses, int inputGeneCount) {
 		List<String> geneValues = new ArrayList<>();
-		for (Chromosome<IntegerGene> chromosome : genotype) {
+		int seen = 0;
+		outer: for (Chromosome<IntegerGene> chromosome : genotype) {
 			for (IntegerGene gene : chromosome) {
+				if (seen >= inputGeneCount) {
+					break outer;
+				}
 				geneValues.add(String.valueOf(gene.allele()));
+				seen++;
 			}
 		}
 		String joined = String.join(" ", geneValues);
@@ -77,10 +124,19 @@ public final class CoverageInstFitnessFunction {
 
 	public TestFitness evaluate(Genotype<IntegerGene> genotype) {
 		int testId = testIdCounter.getAndIncrement();
-		List<CoverageInstRun.ProcessLaunchSpec> launchSpecs = buildLaunchSpecs(genotype, testSetupProcesses);
+		List<CoverageInstRun.ProcessLaunchSpec> launchSpecs = buildLaunchSpecs(genotype, testSetupProcesses,
+				inputGeneCount);
 
 		try {
-			CoverageInstRun.TestCaseResult result = run.runTestCase(testId, launchSpecs, execTimeLimitMs);
+			java.io.File scheduleFile = null;
+			if (!racePoints.isEmpty()) {
+				String inline = RaceGeneSupport.toScheduleInlineString(racePoints, genotype, inputGeneCount);
+				scheduleFile = Files.createTempFile("race-schedule-" + testId + "-", ".txt").toFile();
+				ReplaySchedule.fromInlineString(inline).save(scheduleFile);
+			}
+			CoverageInstRun.TestCaseResult result = scheduleFile != null
+					? run.runTestCase(testId, launchSpecs, execTimeLimitMs, scheduleFile)
+					: run.runTestCase(testId, launchSpecs, execTimeLimitMs);
 			if (!result.allProcessesCompleted) {
 				// Matches FitnessFunction's convention on the ValiPar path:
 				// a missing/incomplete execution (here, a process that had
@@ -110,7 +166,8 @@ public final class CoverageInstFitnessFunction {
 			double sum = 0.0;
 			for (RequiredEdge edge : result.uncovered) {
 				sum += GraphDistance.compute(edge, run.flowGraphs(), run.syncEdgeBlocks(), run.branchPredicates(),
-						result.observedNodesByProcess, result.observedOperandsByProcess);
+						result.observedNodesByProcess, result.observedOperandsByProcess,
+						result.observedSenderByReceiveEdge, chainedDistance);
 			}
 			distance = sum / result.totalRequired;
 		}
