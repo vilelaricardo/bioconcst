@@ -39,8 +39,8 @@ public final class GraphDistance {
 	 * inputs used only when the divergence block for an uncovered edge has
 	 * no locally-recognized numeric predicate (e.g. a String#equals-based
 	 * decision fed by a message payload from another process - the
-	 * "cross-process flag problem", see chainedDistance's own doc below).
-	 * When chainedDistance has no entry for the edge being computed, or
+	 * "cross-process flag problem", see causalDistance's own doc below).
+	 * When causalDistance has no entry for the edge being computed, or
 	 * observedSenderByReceiveEdge can't resolve a real sender for it, this
 	 * is byte-for-byte identical to the 6-arg overload - existing callers
 	 * and existing benchmarks are unaffected unless they opt in.
@@ -50,7 +50,7 @@ public final class GraphDistance {
 	 *        receive edge in this execution - CoverageEvaluator.Result's
 	 *        field of the same name, already resolved for free as part of
 	 *        MESSAGE-edge coverage matching.
-	 * @param chainedDistance declares, for a sender edge id with no local
+	 * @param causalDistance declares, for a sender edge id with no local
 	 *        numeric predicate, which receiver edges' real senders should
 	 *        instead lend their own sideDistance (recursively, for the
 	 *        given targetSenderEdge) as this edge's divergence
@@ -67,13 +67,13 @@ public final class GraphDistance {
 			Map<Integer, Set<String>> observedNodesByProcess,
 			Map<Integer, Map<String, int[]>> observedOperandsByProcess,
 			Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge,
-			Map<String, List<ChainedSource>> chainedDistance) {
+			Map<String, List<CausalSource>> causalDistance) {
 		double sendDistance = sideDistance(edge.senderEdgeId, edge.senderProcessId, graphs, syncEdgeBlocks,
 				branchPredicates, observedNodesByProcess, observedOperandsByProcess, observedSenderByReceiveEdge,
-				chainedDistance);
+				causalDistance);
 		double receiveDistance = sideDistance(edge.receiverEdgeId, edge.receiverProcessId, graphs, syncEdgeBlocks,
 				branchPredicates, observedNodesByProcess, observedOperandsByProcess, observedSenderByReceiveEdge,
-				chainedDistance);
+				causalDistance);
 		return (sendDistance + receiveDistance) / 2.0;
 	}
 
@@ -108,21 +108,21 @@ public final class GraphDistance {
 	 * skipped by short-circuit - see the null-operands skip below).</li>
 	 * </ul>
 	 */
-	public static final class ChainedSource {
+	public static final class CausalSource {
 		public String viaReceiverEdge;
 		public String targetSenderEdge;
 		public String localBlock;
 		public Boolean wantedTaken;
 
-		public ChainedSource() {
+		public CausalSource() {
 		}
 
-		public ChainedSource(String viaReceiverEdge, String targetSenderEdge) {
+		public CausalSource(String viaReceiverEdge, String targetSenderEdge) {
 			this.viaReceiverEdge = viaReceiverEdge;
 			this.targetSenderEdge = targetSenderEdge;
 		}
 
-		public ChainedSource(String localBlock, boolean wantedTaken) {
+		public CausalSource(String localBlock, boolean wantedTaken) {
 			this.localBlock = localBlock;
 			this.wantedTaken = wantedTaken;
 		}
@@ -133,7 +133,7 @@ public final class GraphDistance {
 			Map<Integer, Set<String>> observedNodesByProcess,
 			Map<Integer, Map<String, int[]>> observedOperandsByProcess,
 			Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge,
-			Map<String, List<ChainedSource>> chainedDistance) {
+			Map<String, List<CausalSource>> causalDistance) {
 		String blockId = syncEdgeBlocks.get(syncEdgeId);
 		if (blockId == null) {
 			// Should never happen for a real declared edge id - fail soft
@@ -169,7 +169,7 @@ public final class GraphDistance {
 		double divergenceContribution = 1.0;
 		boolean resolvedByChaining = false;
 
-		// chainedDistance is an explicit, per-edge human declaration ("this
+		// causalDistance is an explicit, per-edge human declaration ("this
 		// edge's own local predicate has no useful gradient, borrow this
 		// other process's instead") - it takes priority over whatever a
 		// LOCAL predicate lookup would find. This matters in practice, not
@@ -179,12 +179,12 @@ public final class GraphDistance {
 		// IFxx-against-zero opcodes), so without this priority the local
 		// lookup below would "succeed" with a flag operand (always exactly
 		// 0 or 1, no continuous gradient) and silently mask the very case
-		// chainedDistance exists to fix.
-		List<ChainedSource> sources = chainedDistance.get(syncEdgeId);
+		// causalDistance exists to fix.
+		List<CausalSource> sources = causalDistance.get(syncEdgeId);
 		if (sources != null && !sources.isEmpty()) {
 			double chainedSum = 0.0;
 			boolean resolvedAny = false;
-			for (ChainedSource source : sources) {
+			for (CausalSource source : sources) {
 				if (source.localBlock != null) {
 					// Same-process flag problem: a boolean computed earlier
 					// in this SAME method (e.g. inWindow = a>=lo && a<=hi)
@@ -216,7 +216,7 @@ public final class GraphDistance {
 				}
 				chainedSum += sideDistance(source.targetSenderEdge, realSender, graphs, syncEdgeBlocks,
 						branchPredicates, observedNodesByProcess, observedOperandsByProcess,
-						observedSenderByReceiveEdge, chainedDistance);
+						observedSenderByReceiveEdge, causalDistance);
 				resolvedAny = true;
 			}
 			if (resolvedAny) {

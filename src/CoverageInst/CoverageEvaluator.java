@@ -63,7 +63,7 @@ public final class CoverageEvaluator {
 		 * correlation already used below to decide MESSAGE-edge coverage
 		 * (a receive Fact's own correlation field), just also copied out
 		 * here instead of being discarded once matching is done - see
-		 * GraphDistance's chainedDistance mechanism, the only consumer.
+		 * GraphDistance's causalDistance mechanism, the only consumer.
 		 */
 		public final Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = new HashMap<>();
 

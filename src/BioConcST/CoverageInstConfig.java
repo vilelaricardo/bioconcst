@@ -3,7 +3,7 @@ package BioConcST;
 import java.util.List;
 import java.util.Map;
 
-import CoverageInst.GraphDistance.ChainedSource;
+import CoverageInst.GraphDistance.CausalSource;
 
 /**
  * Declares everything CoverageInst needs beyond what BenchmarkConfig already
@@ -51,7 +51,7 @@ public class CoverageInstConfig {
 	// flat penalty. Optional - defaults to none declared (identical to
 	// today's flat-fallback behavior). See GraphDistance.compute's javadoc
 	// for the full mechanism and its scope limits.
-	public Map<String, List<ChainedSource>> chainedDistance;
+	public Map<String, List<CausalSource>> causalDistance;
 
 	// edgeId -> arbitrary group name, for same-process shared-identity
 	// primitives (Semaphore/Lock/Condition/CyclicBarrier) when a process has

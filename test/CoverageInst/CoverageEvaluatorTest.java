@@ -144,7 +144,7 @@ class CoverageEvaluatorTest {
 	void observedSenderByReceiveEdgeRecordsTheRealResolvedSenderPerReceive() throws Exception {
 		// Same correlation data already used to decide MESSAGE-edge coverage
 		// (a receive's own resolved sender processId) - GraphDistance's
-		// chainedDistance mechanism is the only consumer of this field, see
+		// causalDistance mechanism is the only consumer of this field, see
 		// GraphDistanceTest's chained-distance cases.
 		File dir = traceDir(null, "RECEIVE B#main:0 1\n");
 

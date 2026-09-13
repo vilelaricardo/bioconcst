@@ -86,7 +86,7 @@ public class CoverageInstStrategy implements SearchStrategy {
 					ci.fixedMessageTargets != null ? ci.fixedMessageTargets : Map.of(),
 					ci.fixedMessageSources != null ? ci.fixedMessageSources : Map.of(),
 					ci.identityGroups != null ? ci.identityGroups : Map.of(),
-					ci.chainedDistance != null ? ci.chainedDistance : Map.of());
+					ci.causalDistance != null ? ci.causalDistance : Map.of());
 
 			File workDir = new File("./cov-experiment-" + benchmark.name);
 			org.apache.commons.io.FileUtils.deleteQuietly(workDir);
@@ -160,7 +160,7 @@ public class CoverageInstStrategy implements SearchStrategy {
 			}
 			CoverageInstFitnessFunction fitnessFn = new CoverageInstFitnessFunction(run,
 					benchmark.testSetupProcesses, required, processIds, execTimeLimitMs, racePoints, inputGeneCount,
-					topology.chainedDistance);
+					topology.causalDistance);
 
 			Problem<Genotype<IntegerGene>, IntegerGene, TestFitness> problem = Problem.of(fitnessFn::evaluate,
 					Codec.of(genotype, gt -> gt));

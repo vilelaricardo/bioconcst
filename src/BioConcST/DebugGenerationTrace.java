@@ -83,7 +83,7 @@ public class DebugGenerationTrace {
 	private static TestFitness evaluateWithBreakdown(Genotype<IntegerGene> genotype, CoverageInstRun run,
 			List<ProcessSpec> testSetupProcesses, List<RequiredEdge> required, List<Integer> processIds,
 			int execTimeLimitMs, int inputGeneCount,
-			java.util.Map<String, List<GraphDistance.ChainedSource>> chainedDistance) {
+			java.util.Map<String, List<GraphDistance.CausalSource>> causalDistance) {
 		String genesKey = genesOf(genotype);
 		List<CoverageInstRun.ProcessLaunchSpec> launchSpecs = CoverageInstFitnessFunction.buildLaunchSpecs(genotype,
 				testSetupProcesses, inputGeneCount);
@@ -100,7 +100,7 @@ public class DebugGenerationTrace {
 			for (RequiredEdge edge : evalResult.uncovered) {
 				double d = GraphDistance.compute(edge, run.flowGraphs(), run.syncEdgeBlocks(), run.branchPredicates(),
 						evalResult.observedNodesByProcess, evalResult.observedOperandsByProcess,
-						evalResult.observedSenderByReceiveEdge, chainedDistance);
+						evalResult.observedSenderByReceiveEdge, causalDistance);
 				sum += d;
 				int idx = required.indexOf(edge);
 				if (breakdown.length() > 0) {
@@ -175,7 +175,7 @@ public class DebugGenerationTrace {
 				ci.fixedMessageTargets != null ? ci.fixedMessageTargets : java.util.Map.of(),
 				ci.fixedMessageSources != null ? ci.fixedMessageSources : java.util.Map.of(),
 				ci.identityGroups != null ? ci.identityGroups : java.util.Map.of(),
-				ci.chainedDistance != null ? ci.chainedDistance : java.util.Map.of());
+				ci.causalDistance != null ? ci.causalDistance : java.util.Map.of());
 		List<RequiredEdge> required = RequiredElementsGenerator.generate(processes, topology);
 
 		int execTimeLimitMs = benchmark.execTimeLimitMs != null ? benchmark.execTimeLimitMs
@@ -201,7 +201,7 @@ public class DebugGenerationTrace {
 
 		Problem<Genotype<IntegerGene>, IntegerGene, TestFitness> problem = Problem.of(
 				gt -> evaluateWithBreakdown(gt, run, benchmark.testSetupProcesses, required, processIds,
-						execTimeLimitMs, inputGeneCount, topology.chainedDistance),
+						execTimeLimitMs, inputGeneCount, topology.causalDistance),
 				Codec.of(genotype, gt -> gt));
 
 		Selector<IntegerGene, TestFitness> survivorsSelector = new LoggingSelector("SOBREVIVENTES (survivorsSelector)",

@@ -18,7 +18,7 @@ import CoverageInst.support.FixtureCompiler;
  * debug-geracao-quorum-handshake.md/research_questions.md: `inWindow =
  * (value >= 480 && value <= 519)`, consumed by `if (inWindow) {...}`. The
  * expected result here (Peer#main:B1 and Peer#main:B0, both
- * wantedTaken=false) is the same chainedDistance config a human worked out
+ * wantedTaken=false) is the same causalDistance config a human worked out
  * by hand and validated in that benchmark's config - this test is the
  * automatic-inference counterpart of that manual answer.
  */

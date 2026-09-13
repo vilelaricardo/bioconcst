@@ -27,8 +27,8 @@ import org.objectweb.asm.tree.TableSwitchInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 /**
- * Standalone static analysis that automatically discovers the chainedDistance
- * "local" resolution (see GraphDistance.ChainedSource's localBlock/
+ * Standalone static analysis that automatically discovers the causalDistance
+ * "local" resolution (see GraphDistance.CausalSource's localBlock/
  * wantedTaken shape) that a human currently has to find by hand - reading a
  * block-graph dump and writing the result into a benchmark's config - and
  * declare manually (see the quorum-handshake case study: Peer#main:B0/B1

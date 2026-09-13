@@ -26,7 +26,7 @@
         "Coordinator#main:4": 1,
         "Coordinator#main:5": 2
       },
-      "chainedDistance": {
+      "causalDistance": {
         "Coordinator#main:2": [
           { "viaReceiverEdge": "Coordinator#main:0", "targetSenderEdge": "Peer#main:0" },
           { "viaReceiverEdge": "Coordinator#main:1", "targetSenderEdge": "Peer#main:0" }

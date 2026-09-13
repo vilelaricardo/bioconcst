@@ -52,7 +52,7 @@ public class DebugRaceFitnessComparison {
 				ci.fixedMessageTargets != null ? ci.fixedMessageTargets : Map.of(),
 				ci.fixedMessageSources != null ? ci.fixedMessageSources : Map.of(),
 				ci.identityGroups != null ? ci.identityGroups : Map.of(),
-				ci.chainedDistance != null ? ci.chainedDistance : Map.of());
+				ci.causalDistance != null ? ci.causalDistance : Map.of());
 
 		File workDir = new File("./cov-debug-race-fitness-" + benchmark.name);
 		org.apache.commons.io.FileUtils.deleteQuietly(workDir);

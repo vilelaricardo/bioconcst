@@ -57,7 +57,7 @@ public class EvaluateMain {
 		Topology topology = new Topology(roleLinks, ci.fixedMessageTargets != null ? ci.fixedMessageTargets : Map.of(),
 				ci.fixedMessageSources != null ? ci.fixedMessageSources : Map.of(),
 				ci.identityGroups != null ? ci.identityGroups : Map.of(),
-				ci.chainedDistance != null ? ci.chainedDistance : Map.of());
+				ci.causalDistance != null ? ci.causalDistance : Map.of());
 		List<RequiredEdge> required = RequiredElementsGenerator.generate(processes, topology);
 
 		CoverageEvaluator.Result result = CoverageEvaluator.evaluate(required, coverageDir, processIds);

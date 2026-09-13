@@ -57,7 +57,7 @@ import java.util.Map;
  * the same kind that must not be cross-paired, e.g. two unrelated
  * CyclicBarrier instances, or two unrelated Semaphore fields).
  *
- * chainedDistance declares, per senderEdgeId with no local numeric
+ * causalDistance declares, per senderEdgeId with no local numeric
  * predicate of its own, which receiver edges' real observed senders
  * should lend their own GraphDistance (for a named targetSenderEdge) as
  * this edge's divergence contribution instead of a flat penalty - see
@@ -73,16 +73,16 @@ public final class Topology {
 	public final Map<String, Integer> fixedMessageTargets;
 	public final Map<String, List<Integer>> fixedMessageSources;
 	public final Map<String, String> identityGroups;
-	public final Map<String, List<GraphDistance.ChainedSource>> chainedDistance;
+	public final Map<String, List<GraphDistance.CausalSource>> causalDistance;
 
 	public Topology(List<RoleLink> messageLinks, Map<String, Integer> fixedMessageTargets,
 			Map<String, List<Integer>> fixedMessageSources, Map<String, String> identityGroups,
-			Map<String, List<GraphDistance.ChainedSource>> chainedDistance) {
+			Map<String, List<GraphDistance.CausalSource>> causalDistance) {
 		this.messageLinks = messageLinks;
 		this.fixedMessageTargets = fixedMessageTargets;
 		this.fixedMessageSources = fixedMessageSources;
 		this.identityGroups = identityGroups;
-		this.chainedDistance = chainedDistance;
+		this.causalDistance = causalDistance;
 	}
 
 	/** Whether two same-process points are eligible to pair - see class javadoc. */

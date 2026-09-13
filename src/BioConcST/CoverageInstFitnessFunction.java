@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import CoverageInst.CoverageEvaluator;
 import CoverageInst.CoverageInstRun;
 import CoverageInst.GraphDistance;
-import CoverageInst.GraphDistance.ChainedSource;
+import CoverageInst.GraphDistance.CausalSource;
 import CoverageInst.RacePoint;
 import CoverageInst.ReplaySchedule;
 import CoverageInst.RequiredEdge;
@@ -40,7 +40,7 @@ public final class CoverageInstFitnessFunction {
 	private final int execTimeLimitMs;
 	private final List<RacePoint> racePoints;
 	private final int inputGeneCount;
-	private final Map<String, List<ChainedSource>> chainedDistance;
+	private final Map<String, List<CausalSource>> causalDistance;
 	private final AtomicInteger testIdCounter = new AtomicInteger(0);
 
 	public CoverageInstFitnessFunction(CoverageInstRun run, List<ProcessSpec> testSetupProcesses,
@@ -64,15 +64,15 @@ public final class CoverageInstFitnessFunction {
 	}
 
 	/**
-	 * chainedDistance is empty for every benchmark that doesn't declare
-	 * coverageInst.chainedDistance - see Topology's own javadoc and
+	 * causalDistance is empty for every benchmark that doesn't declare
+	 * coverageInst.causalDistance - see Topology's own javadoc and
 	 * GraphDistance.compute's javadoc for the full mechanism (cross-process
 	 * "flag problem" gradient for a MESSAGE edge with no local numeric
 	 * predicate of its own).
 	 */
 	public CoverageInstFitnessFunction(CoverageInstRun run, List<ProcessSpec> testSetupProcesses,
 			List<RequiredEdge> required, List<Integer> processIds, int execTimeLimitMs, List<RacePoint> racePoints,
-			int inputGeneCount, Map<String, List<ChainedSource>> chainedDistance) {
+			int inputGeneCount, Map<String, List<CausalSource>> causalDistance) {
 		this.run = run;
 		this.testSetupProcesses = testSetupProcesses;
 		this.required = required;
@@ -80,7 +80,7 @@ public final class CoverageInstFitnessFunction {
 		this.execTimeLimitMs = execTimeLimitMs;
 		this.racePoints = racePoints;
 		this.inputGeneCount = inputGeneCount;
-		this.chainedDistance = chainedDistance;
+		this.causalDistance = causalDistance;
 	}
 
 	/**
@@ -167,7 +167,7 @@ public final class CoverageInstFitnessFunction {
 			for (RequiredEdge edge : result.uncovered) {
 				sum += GraphDistance.compute(edge, run.flowGraphs(), run.syncEdgeBlocks(), run.branchPredicates(),
 						result.observedNodesByProcess, result.observedOperandsByProcess,
-						result.observedSenderByReceiveEdge, chainedDistance);
+						result.observedSenderByReceiveEdge, causalDistance);
 			}
 			distance = sum / result.totalRequired;
 		}
