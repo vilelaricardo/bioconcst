@@ -194,6 +194,8 @@ public class CoverageInstStrategy implements SearchStrategy {
 
 			EvolutionStatistics<TestFitness, ?> statistics = EvolutionStatistics.ofNumber();
 			List<Double> syncCoverageHistory = new ArrayList<>();
+			List<Double> cumulativeCoverageHistory = new ArrayList<>();
+			List<Integer> evaluationCountHistory = new ArrayList<>();
 			double[] bestCoverageSoFar = { -1.0 };
 			AtomicReference<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPopulation = new AtomicReference<>(
 					ISeq.empty());
@@ -280,6 +282,9 @@ public class CoverageInstStrategy implements SearchStrategy {
 							}
 							updateProgressVisualization(result.population(), required, processes, run, mapper,
 									coveredEdgeKeysSoFar, progressDir);
+							cumulativeCoverageHistory.add(
+									required.isEmpty() ? 0.0 : 100.0 * coveredEdgeKeysSoFar.size() / required.size());
+							evaluationCountHistory.add(fitnessFn.evaluationCount());
 							if (!racePoints.isEmpty() && "true".equals(System.getProperty("coverage.debugRaceGene"))) {
 								java.util.Map<Integer, Integer> counts = new java.util.TreeMap<>();
 								for (Phenotype<IntegerGene, TestFitness> ind : result.population()) {
@@ -328,6 +333,16 @@ public class CoverageInstStrategy implements SearchStrategy {
 					bestPopulation.get());
 			solutionResult.setReplayBundles(captureReplayBundles(bestPopulation.get(), benchmark.testSetupProcesses,
 					required, mapper, inputGeneCount));
+			solutionResult.setCumulativeCoverage(cumulativeCoverageHistory);
+			solutionResult.setEvaluationCount(fitnessFn.evaluationCount());
+			solutionResult.setEvaluationCountHistory(evaluationCountHistory);
+			List<String> uncoveredElementKeys = new ArrayList<>();
+			for (RequiredEdge edge : required) {
+				if (!coveredEdgeKeysSoFar.contains(edge.toString())) {
+					uncoveredElementKeys.add(edge.toString());
+				}
+			}
+			solutionResult.setUncoveredElementKeys(uncoveredElementKeys);
 			return solutionResult;
 		} catch (IOException e) {
 			throw new RuntimeException("CoverageInstStrategy failed to prepare " + benchmark.name, e);

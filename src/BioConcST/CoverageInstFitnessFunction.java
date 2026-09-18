@@ -122,6 +122,19 @@ public final class CoverageInstFitnessFunction {
 		return launchSpecs;
 	}
 
+	/**
+	 * Count of real, native evaluate() calls actually executed so far - NOT
+	 * populationSize x generations, which overcounts whenever survivors carry
+	 * fitness across generations instead of being re-evaluated (see
+	 * CoverageInstStrategy's Engine.builder().survivorsFraction(...)). Backed
+	 * by testIdCounter, which already increments exactly once per real
+	 * execution for an unrelated reason (assigning each test case a unique
+	 * id) - this just exposes that existing count.
+	 */
+	public int evaluationCount() {
+		return testIdCounter.get();
+	}
+
 	public TestFitness evaluate(Genotype<IntegerGene> genotype) {
 		int testId = testIdCounter.getAndIncrement();
 		List<CoverageInstRun.ProcessLaunchSpec> launchSpecs = buildLaunchSpecs(genotype, testSetupProcesses,
@@ -164,10 +177,15 @@ public final class CoverageInstFitnessFunction {
 		double distance = 0.0;
 		if (result.totalRequired > 0) {
 			double sum = 0.0;
+			boolean debugEdges = "true".equals(System.getProperty("coverage.debugEdgeDistances"));
 			for (RequiredEdge edge : result.uncovered) {
-				sum += GraphDistance.compute(edge, run.flowGraphs(), run.syncEdgeBlocks(), run.branchPredicates(),
-						result.observedNodesByProcess, result.observedOperandsByProcess,
+				double edgeDistance = GraphDistance.compute(edge, run.flowGraphs(), run.syncEdgeBlocks(),
+						run.branchPredicates(), result.observedNodesByProcess, result.observedOperandsByProcess,
 						result.observedSenderByReceiveEdge, causalDistance);
+				if (debugEdges) {
+					System.out.println("EDGE_DEBUG " + edge + " => " + edgeDistance);
+				}
+				sum += edgeDistance;
 			}
 			distance = sum / result.totalRequired;
 		}

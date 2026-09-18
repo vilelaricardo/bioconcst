@@ -278,3 +278,32 @@ Registrando a ordem combinada com o usuário pra quando formos executar - "vamos
 6. **RQ3 - multi-objetivo.** Deixado por último de propósito - ainda sem nenhum desenho, é a mudança arquiteturalmente mais invasiva das cinco originais, e as respostas dos itens acima (principalmente RQ6/RQ7) podem informar como desenhar o genótipo de dois cromossomos (ver a nota já registrada sobre a Figura 2 do artigo de 2022 ter previsto isso desde o início).
 
 **RQ2 (calibração do FuzzySelector) não entra nesta fila** - já está respondida e fechada (revertido pro FCL pré-09-02, confirmado 2x em N=15), mantida no documento só como histórico.
+
+## Literatura recém-achada, direto no nosso nicho: Mirhosseini & Haghighi (2020) e Gong et al. (2020) (2026-09-12)
+
+Contexto: buscando validar se o gap "geração de teste via busca para sistemas message-passing" (apontado pela survey de Bianchi/Margara/Pezzè, TSE 2018, seções 6.1 e 6.6, como <5% da literatura) continuava aberto em trabalhos mais recentes, achamos dois papers de 2020 - já salvos em `papers/novo_conc_articles/` - que competem diretamente com esse nicho e, em um dos casos, com o próprio `raceGene` (RQ4/RQ5).
+
+**Mirhosseini & Haghighi, IJCIS 2020** - "A Search-Based Test Data Generation Method for Concurrent Programs". Usa um grafo chamado PCFG (mesma sigla/ideia que a nossa), critério **all-def-s-use** (cobertura de pares def-use que atravessam uma aresta de comunicação - diferente do nosso critério, que cobre a própria topologia de arestas de sincronização via `RequiredElementsGenerator`) e uma fitness de duas partes: `PathSimilarity_Score` (estado discreto 0-5 conforme quanto do caminho-alvo de 3 sub-trechos - antes/aresta/depois da comunicação - foi coberto) + `NBD` (branch distance normalizada, mesma família Korel/Tracey que já usamos). Compara GA/ACO/PSO/SFLA e propõe um híbrido SFLA-VND, em 5 benchmarks (Gcd1/Gcd2/Index/Matrix/SkaMPI1). É mais um paper de "qual metaheurística generaliza melhor pra essa formulação de fitness" do que um ataque específico ao problema de não-determinismo/corrida - eles até têm `receive` com wildcard (nós 5/6 do master de `Gcd1`), mas não aparenta tratar isso como problema central.
+
+**Gong, Pan, Tian et al., Information and Software Technology 2020** - "A feedback-directed method of evolutionary test data generation for parallel programs". Este é o mais próximo do nosso `raceGene`: o indivíduo já codifica **dado de entrada E sequência de escalonamento no mesmo cromossomo** (`X = (x_1,...,x_ns, r_1,...,r_nr)`, onde cada `r_j` é a ordem de chegada de um "Wildcard Receiving Node Group" - exatamente o problema do `receive(ANY)`/`RacePoint` que RQ4/RQ5 ataca). A contribuição deles não é mudar a fitness (usam uma métrica única e mais simples que a nossa - similaridade de maior sub-sequência comum de nós entre caminho-alvo e caminho percorrido, sem branch distance) - é mudar **onde o crossover/mutation atuam**: um arquivo de indivíduos já avaliados informa quais sequências de escalonamento são "boas" (`ESS-GA`), e quais WRNGs especificamente afetam os nós ainda não cobertos do caminho-alvo (`RUS-GA`), pra concentrar os operadores genéticos ali em vez de tratar dado-de-entrada e escalonamento com a mesma probabilidade uniforme. Testado em 11 benchmarks (mais que os nossos atuais), com reduções de até ~50-70% no número de gerações/tempo contra uma GA básica (`BGA`) que trata as duas partes do cromossomo igualmente.
+
+**Por que isso importa pro nosso `raceGene` (RQ4/RQ5)**: o piloto que já rodamos comparou mutação de gene de corrida **aleatória** vs. **guiada por LLM**, e não achou vantagem clara de nenhuma sobre deixar o SO decidir livremente. O Gong et al. 2020 mostra que existe uma **terceira alternativa, já publicada e validada empiricamente**, que nem é aleatória nem é LLM: realocar a probabilidade de operador genético com base em feedback populacional puro (sem custo de LLM nem heurística externa) sobre quais sequências de escalonamento tendem a cobrir mais. Isso é uma hipótese concreta e barata de testar antes de declarar RQ4/RQ5 encerradas - talvez o problema não seja "escalonamento não se beneficia de busca direcionada", e sim "nossas duas tentativas (aleatório, LLM) não eram as formas certas de direcionar".
+
+**O que continua parecendo genuinamente nosso**: nenhum dos dois papers lida com o modo de falha específico que motivou o `chainedDistance` - a distância colapsar pra `0,0` (idêntica a "coberto de verdade") quando os dois lados de uma dependência (aresta MESSAGE, ou flag local tipo `inWindow`) já foram fisicamente alcançados por QUALQUER execução do processo, sem correlação de qual execução gerou qual observação (`GraphDistance.java:60-74`, achado documentado acima em "Achado metodológico..."). A fitness do Mirhosseini/Haghighi (baseada em estado discreto 0-5 por sub-trecho) e a do Gong et al. (similaridade de sub-sequência) têm a mesma classe de problema em potencial - nenhuma delas parece ter um mecanismo equivalente ao `ChainedSource` pra resolver isso -, mas não confirmamos isso lendo o código deles (só o texto do paper), então isso fica como suposição a verificar, não conclusão.
+
+**Não testado ainda**: reimplementar ESS-GA/RUS-GA (realocação de probabilidade de operador por feedback populacional) como um QUARTO braço do experimento de `raceGene`, ao lado de aleatório/LLM/sem-gene-de-corrida, antes de fechar RQ4/RQ5 de vez.
+
+## Desenho formal RQ6/RQ7 (2026-09-13)
+
+Desenho completo (níveis landscape/search/system, 4 braços incluindo um
+"GA local-only" sugerido pelo Codex, métricas de orçamento nominal vs.
+avaliações reais, predição falsificável sobre o que causalDistance deve e
+não deve resolver) está em `rq6-rq7-causaldistance-experiment-design.md`.
+Ainda não executado. Motivado por uma revisão do Codex que achou um
+overclaim real no artigo: causalDistance resolve o flag problem local e a
+propagação cross-process quando a mensagem ainda não chegou, mas NÃO
+resolve o pareamento send/receive errado quando ambos os lados já foram
+alcançados (elementos 2/3/6/7 do quorum-handshake) — isso é
+não-determinismo de escalonamento, não um problema de dado/flag. Texto do
+artigo corrigido (`main.tex`, commit `a569b1c`) para não afirmar mais que
+um único mecanismo resolve os dois casos.
