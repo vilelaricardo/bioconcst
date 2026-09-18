@@ -18,3 +18,14 @@
 
 # Reference papers for the LLM experiment - copyrighted PDFs, local reading only.
 /papers/
+
+# Internal research-strategy/debug notes (informal, not meant for the
+# public repo tied to a published paper) - kept locally, never tracked.
+/research_questions.md
+/debug-geracao-quorum-handshake.md
+
+# Session-local experiment-orchestration scripts (same convention as the
+# other run-*.sh scripts already never tracked in this repo) - kept
+# locally for reproducing a specific run, not part of the tracked tool.
+/generate_williams_schedule.py
+/run-interleaved-replication.sh
