@@ -62,7 +62,7 @@
         }
     },
     "ga": {
-        "populationSize": 3800,
+        "populationSize": 1900,
         "min": 0,
         "max": 100,
         "threadExecutors": 4,
