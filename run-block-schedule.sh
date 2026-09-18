@@ -80,7 +80,10 @@ validate_schedule() {
   missing=0
   hash_mismatches=0
   existing_outputs=0
-  declare -A seen_base_hash
+  # Portable across bash 3.2 (macOS default, no associative arrays) and
+  # newer bash on Legion: re-hash each base config per row instead of
+  # caching by path. Base config sets are tiny (2-5 files), so re-hashing
+  # a handful of times per row is negligible cost.
   while IFS=, read -r block position arm base_config base_config_hash cell_config run_name; do
     [[ "$block" == "block" ]] && continue
     run_name="${run_name%$'\r'}"
@@ -94,15 +97,12 @@ validate_schedule() {
       continue
     fi
 
-    if [[ -z "${seen_base_hash[$base_config]:-}" ]]; then
-      current_hash="$(shasum -a 256 "$base_config" 2>/dev/null | cut -c1-12)"
-      if [[ -z "$current_hash" ]]; then
-        current_hash="$(sha256sum "$base_config" | cut -c1-12)"
-      fi
-      seen_base_hash[$base_config]="$current_hash"
+    current_hash="$(shasum -a 256 "$base_config" 2>/dev/null | cut -c1-12)"
+    if [[ -z "$current_hash" ]]; then
+      current_hash="$(sha256sum "$base_config" | cut -c1-12)"
     fi
-    if [[ "${seen_base_hash[$base_config]}" != "$base_config_hash" ]]; then
-      echo "HASH MISMATCH: $base_config recorded as $base_config_hash, now ${seen_base_hash[$base_config]}" >&2
+    if [[ "$current_hash" != "$base_config_hash" ]]; then
+      echo "HASH MISMATCH: $base_config recorded as $base_config_hash, now $current_hash" >&2
       hash_mismatches=$((hash_mismatches + 1))
     fi
 
