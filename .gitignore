@@ -18,3 +18,7 @@
 
 # Reference papers for the LLM experiment - copyrighted PDFs, local reading only.
 /papers/
+
+# Internal research-strategy notes (informal, not meant for the public
+# repo tied to a published paper) - kept locally, never tracked.
+/research_questions.md
