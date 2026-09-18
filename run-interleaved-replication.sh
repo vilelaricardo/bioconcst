@@ -48,8 +48,13 @@ if ! git diff --quiet HEAD -- 2>/dev/null; then
 fi
 
 echo "commit=$COMMIT (working tree clean, matches HEAD)"
-echo "rebuilding from this exact commit (mvn -o -DskipTests package)..."
-mvn -o -DskipTests package -q
+# Uses "compile", not "package": the classpath below runs straight out of
+# target/classes, and "package" additionally invokes maven-jar-plugin,
+# whose own transitive deps aren't always pre-cached for -o (offline) use
+# on a fresh machine -- a real failure seen on Legion's first run of this
+# script, unrelated to whether the source actually builds.
+echo "rebuilding from this exact commit (mvn -o -DskipTests compile)..."
+mvn -o -DskipTests compile -q
 
 CP="$(pwd)/target/classes:$(cat /tmp/cp.txt 2>/dev/null || true)"
 if [[ ! -f /tmp/cp.txt ]]; then
