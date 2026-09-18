@@ -196,6 +196,16 @@ public class CoverageInstStrategy implements SearchStrategy {
 			List<Double> syncCoverageHistory = new ArrayList<>();
 			List<Double> cumulativeCoverageHistory = new ArrayList<>();
 			List<Integer> evaluationCountHistory = new ArrayList<>();
+			// Population-diversity proxy: number of distinct genotypes (by
+			// value, not object identity - IntegerGene/Genotype are proper
+			// value types) among this generation's populationSize
+			// individuals. Tests the premature-convergence hypothesis raised
+			// 2026-09-18 (sync-claude-codex.md): does a stronger gradient
+			// (full/local-only) collapse population diversity faster than
+			// baseline, trading quick early successes for permanently stuck
+			// late failures once the population can no longer explore
+			// towards a rare target?
+			List<Integer> uniqueGenotypeCountHistory = new ArrayList<>();
 			double[] bestCoverageSoFar = { -1.0 };
 			AtomicReference<ISeq<Phenotype<IntegerGene, TestFitness>>> bestPopulation = new AtomicReference<>(
 					ISeq.empty());
@@ -285,6 +295,9 @@ public class CoverageInstStrategy implements SearchStrategy {
 							cumulativeCoverageHistory.add(
 									required.isEmpty() ? 0.0 : 100.0 * coveredEdgeKeysSoFar.size() / required.size());
 							evaluationCountHistory.add(fitnessFn.evaluationCount());
+							long uniqueGenotypes = result.population().stream().map(Phenotype::genotype).distinct()
+									.count();
+							uniqueGenotypeCountHistory.add((int) uniqueGenotypes);
 							if (!racePoints.isEmpty() && "true".equals(System.getProperty("coverage.debugRaceGene"))) {
 								java.util.Map<Integer, Integer> counts = new java.util.TreeMap<>();
 								for (Phenotype<IntegerGene, TestFitness> ind : result.population()) {
@@ -336,6 +349,7 @@ public class CoverageInstStrategy implements SearchStrategy {
 			solutionResult.setCumulativeCoverage(cumulativeCoverageHistory);
 			solutionResult.setEvaluationCount(fitnessFn.evaluationCount());
 			solutionResult.setEvaluationCountHistory(evaluationCountHistory);
+			solutionResult.setUniqueGenotypeCountHistory(uniqueGenotypeCountHistory);
 			List<String> uncoveredElementKeys = new ArrayList<>();
 			for (RequiredEdge edge : required) {
 				if (!coveredEdgeKeysSoFar.contains(edge.toString())) {

@@ -49,6 +49,14 @@ public class SolutionResult {
 	// doesn't isolate the mechanism's effect from how much it costs to run).
 	// Null for strategies that don't track this.
 	private List<Integer> evaluationCountHistory;
+	// Per-generation count of distinct genotypes (by value) among the
+	// populationSize individuals - a population-diversity proxy. Added
+	// 2026-09-18 to test whether a stronger causalDistance gradient causes
+	// the population to converge (and stop exploring) faster than baseline,
+	// trading quick early successes for a lower ceiling on later ones. Only
+	// GA strategies populate this; null for random-sampling strategies,
+	// which have no evolving population to measure diversity over.
+	private List<Integer> uniqueGenotypeCountHistory;
 
 	public SolutionResult(List<Double> syncCoverage, EvolutionStatistics<TestFitness, ?> statistics,
 			ISeq<Phenotype<IntegerGene, TestFitness>> bestList, ISeq<Phenotype<IntegerGene, TestFitness>> bestPop) {
@@ -89,6 +97,14 @@ public class SolutionResult {
 
 	public void setEvaluationCountHistory(List<Integer> evaluationCountHistory) {
 		this.evaluationCountHistory = evaluationCountHistory;
+	}
+
+	public List<Integer> getUniqueGenotypeCountHistory() {
+		return uniqueGenotypeCountHistory;
+	}
+
+	public void setUniqueGenotypeCountHistory(List<Integer> uniqueGenotypeCountHistory) {
+		this.uniqueGenotypeCountHistory = uniqueGenotypeCountHistory;
 	}
 
 	public List<ReplayBundle> getReplayBundles() {

@@ -37,18 +37,23 @@ public final class ResultsWriter {
 		// SolutionResult.evaluationCountHistory's javadoc). -1 when a
 		// strategy doesn't track this.
 		List<Integer> evaluationCountHistory = result.getEvaluationCountHistory();
+		// Per-generation count of distinct genotypes in the population - a
+		// diversity proxy, null for strategies without an evolving
+		// population (see SolutionResult.uniqueGenotypeCountHistory's javadoc).
+		List<Integer> uniqueGenotypeCountHistory = result.getUniqueGenotypeCountHistory();
 
 		File dir = new File(directory);
 		dir.mkdirs();
 		File out = new File(dir, fileName);
 
 		try (FileWriter writer = new FileWriter(out)) {
-			writer.write("generation,distance,coverage,cumulativeCoverage,evaluationCount\n");
+			writer.write("generation,distance,coverage,cumulativeCoverage,evaluationCount,uniqueGenotypes\n");
 			for (int i = 0; i < bestList.size(); i++) {
 				double cumulative = cumulativeCoverage != null ? cumulativeCoverage.get(i) : coverage.get(i);
 				int evalCount = evaluationCountHistory != null ? evaluationCountHistory.get(i) : -1;
+				int uniqueGenotypes = uniqueGenotypeCountHistory != null ? uniqueGenotypeCountHistory.get(i) : -1;
 				writer.write((i + 1) + "," + bestList.get(i).fitness().getDistance() + "," + coverage.get(i) + ","
-						+ cumulative + "," + evalCount + "\n");
+						+ cumulative + "," + evalCount + "," + uniqueGenotypes + "\n");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
