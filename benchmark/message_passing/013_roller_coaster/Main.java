@@ -66,7 +66,7 @@ public class Main {
         socketId = 1;
         DatagramSocket socket1 = new DatagramSocket();
         int port1 = socket1.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // make address file with IP:PORT

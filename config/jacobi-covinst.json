@@ -1,0 +1,83 @@
+{
+  "benchmark": {
+    "name": "jacobi",
+    "path": "./benchmark/shared_memory/010_jacobi",
+    "processes": ["Master"],
+    "parseFiles": ["Master.class", "Slave.class"],
+    "ignoreFiles": ["SharedVariables.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Master", "args": "2 TESTDATA" }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      { "min": 0, "max": 2 },
+      { "min": 0, "max": 2 }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "Master": ["Master", "Slave"]
+      },
+      "identityGroups": {
+        "Master#main:0": "continues",
+        "Slave#run:16": "continues",
+        "Slave#run:17": "continues",
+        "Slave#run:22": "continues",
+        "Slave#run:23": "continues",
+        "Master#main:1": "synchThreads",
+        "Slave#run:24": "synchThreads",
+        "Slave#run:27": "synchThreads",
+        "Master#main:2": "rowMutex",
+        "Master#main:4": "rowMutex",
+        "Slave#run:0": "rowMutex",
+        "Slave#run:3": "rowMutex",
+        "Slave#run:10": "rowMutex",
+        "Slave#run:13": "rowMutex",
+        "Master#main:3": "multipleMutex",
+        "Master#main:5": "multipleMutex",
+        "Slave#run:8": "multipleMutex",
+        "Slave#run:9": "multipleMutex",
+        "Master#main:6": "masterSem1",
+        "Master#main:12": "masterSem1",
+        "Slave#run:18": "masterSem1",
+        "Slave#run:25": "masterSem1",
+        "Master#main:7": "masterSem2",
+        "Master#main:13": "masterSem2",
+        "Slave#run:19": "masterSem2",
+        "Slave#run:26": "masterSem2",
+        "Master#main:8": "thread1IJ",
+        "Master#main:9": "thread1IJ",
+        "Slave#run:4": "thread1IJ",
+        "Master#main:10": "thread2IJ",
+        "Master#main:11": "thread2IJ",
+        "Slave#run:5": "thread2IJ",
+        "Slave#run:1": "thread1II",
+        "Slave#run:6": "thread1II",
+        "Slave#run:11": "thread1II",
+        "Slave#run:14": "thread1II",
+        "Slave#run:20": "thread1II",
+        "Slave#run:2": "thread2II",
+        "Slave#run:7": "thread2II",
+        "Slave#run:12": "thread2II",
+        "Slave#run:15": "thread2II",
+        "Slave#run:21": "thread2II"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 2,
+    "threadExecutors": 8,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "jacobi-covinst"
+  }
+}

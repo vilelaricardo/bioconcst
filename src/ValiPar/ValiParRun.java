@@ -33,8 +33,24 @@ public final class ValiParRun {
 			}
 			FileUtils.forceMkdir(new File("experiment"));
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			// A partially-cleaned ./experiment is worse than a crash: commons-io's
+			// deleteDirectory aborts its whole recursive walk on the first file it
+			// can't remove (e.g. a root-owned leftover from a container that ran as
+			// root, or a killed prior run), silently leaving unrelated test<N>
+			// directories from a PREVIOUS benchmark/run intact. Those stale
+			// directories then collide with this run's own testIDs - ValiPar's own
+			// "testcase -n" appears to reuse whatever setup.json already exists for
+			// an ID instead of overwriting it, so the new run can silently execute
+			// the OLD benchmark's compiled classes under the new run's test IDs,
+			// producing real-looking but wrong fitness/coverage data with no error
+			// at all (confirmed happening in practice - see git history). Failing
+			// loudly here is the only safe option; there is no partial state that's
+			// safe to keep going on.
+			throw new IllegalStateException(
+					"Could not fully clean ./experiment - refusing to continue with a possibly stale directory "
+							+ "(a leftover file from a killed/prior run, likely root-owned, blocked full deletion). "
+							+ "Remove it manually (e.g. 'sudo rm -rf ./experiment') and re-run.",
+					e1);
 		}
 
 		// Any already-running container pool is bind-mounted to the directory

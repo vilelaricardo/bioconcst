@@ -1,0 +1,72 @@
+{
+  "benchmark": {
+    "name": "cigarette-smokers",
+    "path": "./benchmark/shared_memory/007_cigarette_smokers",
+    "processes": ["Main"],
+    "parseFiles": ["Main.class", "Controller.class", "Smoker_With_Tobacco.class", "Smoker_With_Paper.class", "Smoker_With_Match.class"],
+    "ignoreFiles": ["SharedObject.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Main", "args": "TESTDATA" }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      { "min": 0, "max": 3 },
+      { "min": 0, "max": 3 }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "Main": ["Main", "Controller", "Smoker_With_Tobacco", "Smoker_With_Paper", "Smoker_With_Match"]
+      },
+      "identityGroups": {
+        "Main#main:0": "agentSemaphore",
+        "Smoker_With_Tobacco#run:1": "agentSemaphore",
+        "Smoker_With_Paper#run:1": "agentSemaphore",
+        "Smoker_With_Match#run:1": "agentSemaphore",
+        "Controller#run:1": "agentSemaphore",
+        "Controller#run:5": "agentSemaphore",
+        "Controller#run:9": "agentSemaphore",
+
+        "Main#main:1": "tobaccoSemaphore",
+        "Controller#run:6": "tobaccoSemaphore",
+        "Controller#run:11": "tobaccoSemaphore",
+        "Smoker_With_Paper#run:3": "tobaccoSemaphore",
+        "Smoker_With_Match#run:3": "tobaccoSemaphore",
+        "Controller#run:0": "tobaccoSemaphore",
+        "Smoker_With_Tobacco#run:0": "tobaccoSemaphore",
+
+        "Main#main:2": "paperSemaphore",
+        "Controller#run:3": "paperSemaphore",
+        "Controller#run:10": "paperSemaphore",
+        "Smoker_With_Tobacco#run:3": "paperSemaphore",
+        "Smoker_With_Match#run:2": "paperSemaphore",
+        "Controller#run:4": "paperSemaphore",
+        "Smoker_With_Paper#run:0": "paperSemaphore",
+
+        "Main#main:3": "matchSemaphore",
+        "Controller#run:2": "matchSemaphore",
+        "Controller#run:7": "matchSemaphore",
+        "Smoker_With_Tobacco#run:2": "matchSemaphore",
+        "Smoker_With_Paper#run:2": "matchSemaphore",
+        "Controller#run:8": "matchSemaphore",
+        "Smoker_With_Match#run:0": "matchSemaphore"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 12,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "cigarette-smokers-covinst"
+  }
+}

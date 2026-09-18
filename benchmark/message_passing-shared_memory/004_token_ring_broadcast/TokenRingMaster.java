@@ -66,7 +66,7 @@ public class TokenRingMaster {
         int localPort = channel.socket().getLocalPort();
         
         // get local IP
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
         
         // broadcast

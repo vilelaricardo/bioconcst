@@ -86,7 +86,7 @@ if((operation==0) || (operation==1)){
         byte [] sendBuffer = new byte [255];
         DatagramSocket clockwiseSocket = new DatagramSocket(); 
         DatagramSocket counterclockwiseSocket = new DatagramSocket();
-        InetAddress serverIP = InetAddress.getLocalHost();
+        InetAddress serverIP = InetAddress.getLoopbackAddress();
 
         if (direction == 0) {
             serverPort = clockwiseSendPort; 

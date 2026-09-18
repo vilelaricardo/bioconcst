@@ -58,6 +58,9 @@ public class TestDataGeneration {
 			SolutionResult result = strategy.run(config, benchmark, filesPath, instrumentation, testSetup);
 
 			ResultsWriter.writeGenerations(result, config.output.directory, runName + "-execution" + i + ".csv");
+			ResultsWriter.writeReplayBundles(result, config.output.directory,
+					runName + "-execution" + i + "-replay.json");
+			ResultsWriter.writeMeta(result, config.output.directory, runName + "-execution" + i + "-meta.json");
 
 			System.out.println("Ending " + runName + ": " + formatter.format(new Date(System.currentTimeMillis())));
 
@@ -89,6 +92,14 @@ public class TestDataGeneration {
 	}
 
 	public static void compressResults(int execution, String runName) {
+		// Only ValiParRun populates ./experiment; CoverageInstStrategy writes
+		// results straight to config.output.directory via ResultsWriter and
+		// never creates this directory, so skip silently instead of packing
+		// an empty tar.gz and printing a misleading "not supported" line.
+		if (!new File("./experiment").isDirectory()) {
+			return;
+		}
+
 		File file = new File("./" + runName);
 		if (!file.exists()) {
 			try {

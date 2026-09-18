@@ -1,0 +1,63 @@
+{
+  "benchmark": {
+    "name": "roller-coaster",
+    "path": "./benchmark/message_passing/013_roller_coaster",
+    "processes": ["Main", "Car", "Passenger", "Passenger", "Passenger", "Passenger"],
+    "parseFiles": ["Main.class", "Car.class", "Passenger.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Main", "args": "4 TESTDATA" },
+      { "id": 1, "className": "Car", "args": "4 2 TESTDATA" },
+      { "id": 2, "className": "Passenger", "args": "1 TESTDATA" },
+      { "id": 3, "className": "Passenger", "args": "2 TESTDATA" },
+      { "id": 4, "className": "Passenger", "args": "3 TESTDATA" },
+      { "id": 5, "className": "Passenger", "args": "4 TESTDATA" }
+    ],
+    "argumentsLength": 1,
+    "argumentRanges": [
+      { "min": 1, "max": 10 }
+    ],
+    "execTimeLimitMs": 30000,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "Passenger", "to": "Car" },
+        { "from": "Car", "to": "Passenger" },
+        { "from": "Passenger", "to": "Main" },
+        { "from": "Car", "to": "Main" }
+      ],
+      "fixedMessageTargets": {
+        "Passenger#main:0": 1,
+        "Passenger#main:2": 1,
+        "Passenger#main:4": 1,
+        "Passenger#main:5": 0,
+        "Car#main:5": 0
+      },
+      "fixedMessageSources": {
+        "Car#main:0": [2, 3, 4, 5],
+        "Car#main:2": [2, 3, 4, 5],
+        "Car#main:4": [2, 3, 4, 5],
+        "Passenger#main:1": [1],
+        "Passenger#main:3": [1],
+        "Main#main:0": [2, 3, 4, 5],
+        "Main#main:1": [1]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 1,
+    "max": 10,
+    "threadExecutors": 8,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "roller-coaster-covinst"
+  }
+}

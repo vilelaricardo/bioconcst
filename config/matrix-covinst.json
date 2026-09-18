@@ -1,0 +1,53 @@
+{
+  "benchmark": {
+    "name": "matrix",
+    "path": "./benchmark/shared_memory/009_matrix",
+    "processes": ["Matrix"],
+    "parseFiles": ["Matrix.class", "FirstSlave.class", "SecondSlave.class"],
+    "ignoreFiles": [],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Matrix", "args": "2 TESTDATA" }
+    ],
+    "argumentsLength": 1,
+    "argumentRanges": [
+      { "min": 0, "max": 2 }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "Matrix": ["Matrix", "FirstSlave", "SecondSlave"]
+      },
+      "identityGroups": {
+        "Matrix#main:0": "mutexCij",
+        "Matrix#main:1": "mutexCij",
+        "Matrix#main:2": "mutexCij",
+        "Matrix#main:3": "mutexCij",
+        "Matrix#main:4": "mutexCij",
+        "Matrix#main:5": "mutexCij",
+        "Matrix#main:6": "mutexCij",
+        "Matrix#main:7": "mutexCij",
+        "SecondSlave#run:1": "mutexCij",
+        "SecondSlave#run:2": "mutexCij",
+        "FirstSlave#run:0": "semaphoreSecondSlave",
+        "FirstSlave#run:1": "semaphoreSecondSlave",
+        "SecondSlave#run:0": "semaphoreSecondSlave"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 2,
+    "threadExecutors": 8,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "matrix-covinst"
+  }
+}

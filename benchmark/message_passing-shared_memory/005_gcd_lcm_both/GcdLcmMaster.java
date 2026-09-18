@@ -125,7 +125,7 @@ public class GcdLcmMaster {
         // create socket
         DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // make address file with IP:PORT
@@ -261,7 +261,7 @@ public class GcdLcmMaster {
         	
        	 DatagramSocket socket = new DatagramSocket();
            int port = socket.getLocalPort();
-           InetAddress addressIP = InetAddress.getLocalHost();
+           InetAddress addressIP = InetAddress.getLoopbackAddress();
            String ip = addressIP.getHostAddress();
 
            // make address file with IP:PORT
@@ -304,7 +304,7 @@ public class GcdLcmMaster {
         	
        	 DatagramSocket socket = new DatagramSocket();
            int port = socket.getLocalPort();
-           InetAddress addressIP = InetAddress.getLocalHost();
+           InetAddress addressIP = InetAddress.getLoopbackAddress();
            String ip = addressIP.getHostAddress();
 
            // make address file with IP:PORT
@@ -350,7 +350,7 @@ public class GcdLcmMaster {
 	
 	 DatagramSocket socket = new DatagramSocket();
     int port = socket.getLocalPort();
-    InetAddress addressIP = InetAddress.getLocalHost();
+    InetAddress addressIP = InetAddress.getLoopbackAddress();
     String ip = addressIP.getHostAddress();
 
     // make address file with IP:PORT
@@ -393,7 +393,7 @@ method = -1; fstValue= -1; sndValue = -1;
 	
 	 DatagramSocket socket = new DatagramSocket();
     int port = socket.getLocalPort();
-    InetAddress addressIP = InetAddress.getLocalHost();
+    InetAddress addressIP = InetAddress.getLoopbackAddress();
     String ip = addressIP.getHostAddress();
 
     // make address file with IP:PORT

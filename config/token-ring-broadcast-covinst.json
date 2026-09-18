@@ -1,0 +1,76 @@
+{
+  "benchmark": {
+    "name": "token-ring-broadcast",
+    "path": "./benchmark/message_passing-shared_memory/004_token_ring_broadcast",
+    "processes": ["TokenRingMaster", "TokenRingSlave", "TokenRingSlave", "TokenRingSlave"],
+    "parseFiles": ["TokenRingMaster.class", "TokenRingSlave.class", "Producer.class"],
+    "ignoreFiles": ["Buffer.class", "HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "TokenRingMaster", "args": "TESTDATA 4" },
+      { "id": 1, "className": "TokenRingSlave", "args": "1 TESTDATA 4" },
+      { "id": 2, "className": "TokenRingSlave", "args": "2 TESTDATA 4" },
+      { "id": 3, "className": "TokenRingSlave", "args": "3 TESTDATA 4" }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      { "min": 0, "max": 2 },
+      { "min": 0, "max": 2 }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "TokenRingSlave": ["TokenRingSlave", "Producer"]
+      },
+      "roleLinks": [
+        { "from": "TokenRingMaster", "to": "TokenRingSlave" },
+        { "from": "TokenRingSlave", "to": "TokenRingMaster" },
+        { "from": "TokenRingSlave", "to": "TokenRingSlave" }
+      ],
+      "fixedMessageTargets": {
+        "TokenRingMaster#main:0": 1,
+        "TokenRingMaster#main:1": 3,
+        "1@TokenRingSlave#main:4": 2,
+        "1@TokenRingSlave#main:5": 0,
+        "2@TokenRingSlave#main:4": 3,
+        "2@TokenRingSlave#main:5": 1,
+        "3@TokenRingSlave#main:4": 0,
+        "3@TokenRingSlave#main:5": 2
+      },
+      "fixedMessageSources": {
+        "1@TokenRingSlave#main:1": [0, 2],
+        "2@TokenRingSlave#main:1": [1, 3],
+        "3@TokenRingSlave#main:1": [0, 2],
+        "TokenRingSlave#main:6": [0]
+      },
+      "identityGroups": {
+        "TokenRingSlave#main:0": "tokenToProducer",
+        "Producer#run:1": "tokenToProducer",
+        "Producer#run:2": "tokenToProducer",
+        "Producer#run:5": "tokenToProducer",
+        "Producer#run:6": "tokenToProducer",
+        "TokenRingSlave#main:2": "barrier1",
+        "Producer#run:0": "barrier1",
+        "Producer#run:4": "barrier1",
+        "TokenRingSlave#main:3": "barrier2",
+        "Producer#run:3": "barrier2",
+        "Producer#run:7": "barrier2"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 2,
+    "threadExecutors": 8,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "token-ring-broadcast-covinst"
+  }
+}

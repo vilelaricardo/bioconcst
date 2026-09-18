@@ -69,7 +69,7 @@ if((operation==0 || operation==1)){
         // create block socket
         DatagramSocket socket = new DatagramSocket();
         int port = socket.getLocalPort();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
 
         // create non-blocking socket

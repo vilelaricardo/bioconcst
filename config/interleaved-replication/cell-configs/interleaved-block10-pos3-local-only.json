@@ -1,0 +1,93 @@
+{
+  "benchmark": {
+    "name": "quorum-handshake",
+    "path": "./benchmark/synthetic/001_quorum_handshake",
+    "processes": [
+      "Coordinator",
+      "Peer",
+      "Peer"
+    ],
+    "parseFiles": [
+      "Coordinator.class",
+      "Peer.class"
+    ],
+    "ignoreFiles": [
+      "HelperClass.class"
+    ],
+    "testSetupProcesses": [
+      {
+        "id": 0,
+        "className": "Coordinator",
+        "args": ""
+      },
+      {
+        "id": 1,
+        "className": "Peer",
+        "args": "1 TESTDATA0"
+      },
+      {
+        "id": 2,
+        "className": "Peer",
+        "args": "2 TESTDATA1"
+      }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      {
+        "min": 0,
+        "max": 1000
+      },
+      {
+        "min": 0,
+        "max": 1000
+      }
+    ],
+    "coverageInst": {
+      "roleLinks": [
+        {
+          "from": "Peer",
+          "to": "Coordinator"
+        },
+        {
+          "from": "Coordinator",
+          "to": "Peer"
+        }
+      ],
+      "fixedMessageTargets": {
+        "Coordinator#main:2": 1,
+        "Coordinator#main:3": 2,
+        "Coordinator#main:4": 1,
+        "Coordinator#main:5": 2
+      },
+      "causalDistance": {
+        "Peer#main:0": [
+          {
+            "localBlock": "Peer#main:B1",
+            "wantedTaken": false
+          },
+          {
+            "localBlock": "Peer#main:B0",
+            "wantedTaken": false
+          }
+        ]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 30,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 100,
+    "threadExecutors": 4,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "interleaved-block10-pos3-local-only"
+  }
+}

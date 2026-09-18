@@ -11,7 +11,7 @@ public class GcdSlave {
 
         // create socket
         DatagramSocket socket = new DatagramSocket();
-        InetAddress addressIP = InetAddress.getLocalHost();
+        InetAddress addressIP = InetAddress.getLoopbackAddress();
         String ip = addressIP.getHostAddress();
         int port = socket.getLocalPort();
 
