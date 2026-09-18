@@ -21,35 +21,83 @@ import BioConcST.ReplayBundle;
 import BioConcST.RoleLinkSpec;
 
 /**
- * Answers, for a completed GA search's exported champion bundles, whether
- * each remaining uncovered MESSAGE edge at an ambiguous receive point
- * (RacePoints.detect) is closeable by SOME sender arrival order at all -
- * distinguishing "scheduling non-determinism the GA never happened to hit"
- * from "structurally unreachable even under total control of arrival
- * order". GraphDistance alone cannot tell these apart: its identity-based
- * correlation collapses to 0.0 distance as soon as both sides of a race
- * have already been physically reached, so there is no gradient left to
- * follow toward "try a different arrival order" (see
- * debug-geracao-quorum-handshake.md). Rather than ask the GA to *guess* the
- * right order via an evolved gene (the raceGene approach), this tool forces
- * every relevant order deterministically and observes what got covered -
- * no LLM, no ambiguity, since the space of orders to try is fully enumerable
- * from data RacePoints.detect already computes.
+ * For a completed search's exported replay bundles, tries every (or, when
+ * K! exceeds a cap, a random sample of) sender-arrival-order permutation of
+ * each RacePoint's candidates and reports which required edges were
+ * observed covered under some tested (genotype, forced schedule) pair.
+ *
+ * This tool does NOT establish that an edge left uncovered here is
+ * structurally unreachable - only that it was not covered under the
+ * specific inputs (the exported bundles) and arrival orders actually
+ * tried. Precisely, it does NOT explore:
+ * - new genotypes beyond the ones already present in the exported bundles;
+ * - the full K! space when K! exceeds permutationCap (a random sample is
+ *   tried instead - see the exhaustiveEnumeration flag in the report);
+ * - combinations of arrival orders across more than one destination at a
+ *   time (every RacePoint besides the one currently being swept, and every
+ *   non-race destination, runs unconstrained during a given attempt);
+ * - repeated sends from the same sender to the same destination beyond
+ *   what a bundle's own recorded process launch already produces.
+ * An attempt where a process has to be force-killed (timeout) is counted
+ * as inconclusive, not as evidence that order fails. "Initial coverage" is
+ * the union of the bundles actually replayed here, which is not
+ * necessarily identical to whatever cumulative coverage a live search run
+ * reported (bundles can fail to reproduce their own recorded schedule in a
+ * different environment - see the WARNING lines and initialCoverageTimeouts
+ * in the report).
  *
  * Runs strictly AFTER a search, over already-captured "-replay.json"
  * bundles (CoverageInstStrategy.captureReplayBundles) - it never touches
  * CoverageInstStrategy/CoverageInstFitnessFunction/GraphDistance/
- * CoverageTracer/ReplaySchedule. For each bundle and each RacePoint with a
- * still-uncovered related edge, it tries every (or, when K! exceeds
- * permutationCap, a random sample of) permutation of that RacePoint's
- * candidate senders by writing a single-destination replay-schedule.txt and
- * re-running the exact same test input under CoverageInstRun's controlled
- * mode - the same mechanism ReplayMain already uses to reproduce a recorded
- * schedule, just applied here to schedules nobody has observed yet.
+ * CoverageTracer/ReplaySchedule. For each bundle and each RacePoint not yet
+ * fully covered, it tries candidate schedules from RaceScheduleSweep by
+ * writing a single-destination replay-schedule.txt and re-running the
+ * exact same test input under CoverageInstRun's controlled mode - the same
+ * mechanism ReplayMain already uses to reproduce a recorded schedule, just
+ * applied here to schedules nobody has observed yet. Every edge observed
+ * covered during any attempt is credited immediately to a single running
+ * total, independently of which RacePoint's own target set is currently
+ * being checked for a stopping condition - an earlier version of this tool
+ * discarded such incidental coverage.
  *
  * java CoverageInst.CoverageSweepMain <config.json> <bundles.json> [permutationCap=40]
  */
 public class CoverageSweepMain {
+
+	static final class Witness {
+		final int[] genotype;
+		final String schedule;
+		final int destinationProcessId;
+
+		Witness(int[] genotype, String schedule, int destinationProcessId) {
+			this.genotype = genotype;
+			this.schedule = schedule;
+			this.destinationProcessId = destinationProcessId;
+		}
+	}
+
+	/**
+	 * The accumulation step a single sweep attempt performs, isolated from
+	 * process execution so it can be unit-tested directly: credits every
+	 * edge in {@code edgesCoveredThisAttempt} to {@code coveredSoFar}
+	 * (recording a witness the first time each is seen) regardless of
+	 * whether that edge belongs to {@code ownEdges} - the RacePoint
+	 * currently being swept - and separately reports whether ownEdges are
+	 * now fully covered, which is the caller's own stopping condition.
+	 * An earlier version only credited edges found inside ownEdges,
+	 * silently discarding coverage of any other edge an attempt happened
+	 * to also produce.
+	 */
+	static boolean recordAttempt(Set<String> coveredSoFar, Map<String, Witness> witnesses,
+			Set<String> edgesCoveredThisAttempt, List<RequiredEdge> ownEdges, int[] genotype, String scheduleLine,
+			int destinationProcessId) {
+		for (String key : edgesCoveredThisAttempt) {
+			if (coveredSoFar.add(key)) {
+				witnesses.put(key, new Witness(genotype, scheduleLine, destinationProcessId));
+			}
+		}
+		return ownEdges.stream().allMatch(e -> coveredSoFar.contains(e.toString()));
+	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 		if (args.length < 2) {
@@ -108,17 +156,17 @@ public class CoverageSweepMain {
 				: BenchmarkConfig.DEFAULT_EXEC_TIME_LIMIT_MS;
 		File scheduleFile = new File(workDir, "replay-schedule.txt");
 
-		// First, recompute what the GA bundles cover on their own, fresh
-		// against the CURRENT `required` set (not the bundle's own recorded
-		// coveredCount, which could be stale relative to a config that
-		// changed since the search ran) - each bundle replayed once under
-		// its own recorded schedule, exactly like ReplayMain does.
-		Set<String> coveredByGA = new LinkedHashSet<>();
+		// Coverage of THESE bundles as replayed HERE - not necessarily
+		// identical to whatever cumulative coverage the original live
+		// search run reported (see class javadoc).
+		Set<String> coveredByBundlesAlone = new LinkedHashSet<>();
+		int initialTimeouts = 0;
 		for (ReplayBundle bundle : bundles) {
 			ReplaySchedule.fromInlineString(bundle.replaySchedule).save(scheduleFile);
 			CoverageInstRun.TestCaseResult result = run.runTestCase(0, launchSpecsOf(bundle), execTimeLimitMs,
 					scheduleFile);
 			if (!result.allProcessesCompleted) {
+				initialTimeouts++;
 				System.err.println(
 						"WARNING: bundle genotype=" + Arrays.toString(bundle.genotype)
 								+ " timed out re-running its own recorded schedule; skipping");
@@ -126,88 +174,130 @@ public class CoverageSweepMain {
 			}
 			CoverageEvaluator.Result evalResult = CoverageEvaluator.evaluate(required, result.coverageDir, processIds);
 			for (RequiredEdge edge : evalResult.covered) {
-				coveredByGA.add(edge.toString());
+				coveredByBundlesAlone.add(edge.toString());
 			}
 		}
 
-		System.out.printf("GA-only coverage: %d/%d edges%n", coveredByGA.size(), required.size());
+		System.out.printf("Initial coverage (replayed bundles only, %d/%d timed out): %d/%d edges%n",
+				initialTimeouts, bundles.size(), coveredByBundlesAlone.size(), required.size());
 
-		Set<String> coveredAfterSweep = new LinkedHashSet<>(coveredByGA);
-		Map<String, String> closingScheduleByEdge = new LinkedHashMap<>();
+		// Single running total: every edge observed covered by any attempt
+		// below is credited here immediately, regardless of which
+		// RacePoint is currently being swept.
+		Set<String> coveredAfterSweep = new LinkedHashSet<>(coveredByBundlesAlone);
+		Map<String, Witness> closingWitnessByEdge = new LinkedHashMap<>();
+		List<Map<String, Object>> racePointDiagnostics = new ArrayList<>();
 
 		for (RacePoint racePoint : racePoints) {
-			Set<String> stillUncovered = new LinkedHashSet<>();
-			for (RequiredEdge edge : racePoint.relatedEdges) {
-				if (!coveredAfterSweep.contains(edge.toString())) {
-					stillUncovered.add(edge.toString());
-				}
-			}
-			if (stillUncovered.isEmpty()) {
+			List<RequiredEdge> ownEdges = racePoint.relatedEdges;
+			if (ownEdges.stream().allMatch(e -> coveredAfterSweep.contains(e.toString()))) {
 				continue;
 			}
 
+			int candidateCount = racePoint.candidateSenderIds.size();
+			boolean exhaustive = RaceScheduleSweep.isExhaustive(candidateCount, permutationCap);
 			List<String> schedules = RaceScheduleSweep.candidateSchedules(racePoint, permutationCap);
+
+			int attempts = 0;
+			int completions = 0;
+			int timeouts = 0;
+			int sizeBefore = coveredAfterSweep.size();
 
 			outer: for (ReplayBundle bundle : bundles) {
 				for (String scheduleLine : schedules) {
+					attempts++;
 					ReplaySchedule.fromInlineString(scheduleLine).save(scheduleFile);
 					CoverageInstRun.TestCaseResult result = run.runTestCase(0, launchSpecsOf(bundle), execTimeLimitMs,
 							scheduleFile);
 					if (!result.allProcessesCompleted) {
+						timeouts++;
 						continue;
 					}
+					completions++;
 					CoverageEvaluator.Result evalResult = CoverageEvaluator.evaluate(required, result.coverageDir,
 							processIds);
+					Set<String> coveredThisAttempt = new LinkedHashSet<>();
 					for (RequiredEdge edge : evalResult.covered) {
-						String key = edge.toString();
-						if (stillUncovered.remove(key)) {
-							coveredAfterSweep.add(key);
-							closingScheduleByEdge.put(key,
-									"dest=" + racePoint.destinationProcessId + " order=" + scheduleLine);
-						}
+						coveredThisAttempt.add(edge.toString());
 					}
-					if (stillUncovered.isEmpty()) {
+					boolean racePointClosed = recordAttempt(coveredAfterSweep, closingWitnessByEdge,
+							coveredThisAttempt, ownEdges, bundle.genotype, scheduleLine,
+							racePoint.destinationProcessId);
+					if (racePointClosed) {
 						break outer;
 					}
 				}
 			}
+			int newEdgesClosed = coveredAfterSweep.size() - sizeBefore;
+
+			Map<String, Object> diag = new LinkedHashMap<>();
+			diag.put("destinationProcessId", racePoint.destinationProcessId);
+			diag.put("candidateSenderIds", racePoint.candidateSenderIds);
+			diag.put("relatedEdgeCount", ownEdges.size());
+			diag.put("permutationCap", permutationCap);
+			diag.put("exhaustiveEnumeration", exhaustive);
+			diag.put("schedulesTriedPerBundle", schedules.size());
+			diag.put("attempts", attempts);
+			diag.put("completions", completions);
+			diag.put("timeouts", timeouts);
+			diag.put("newEdgesClosed", newEdgesClosed);
+			racePointDiagnostics.add(diag);
 		}
 
-		System.out.printf("GA + deterministic sweep coverage: %d/%d edges%n", coveredAfterSweep.size(),
-				required.size());
+		System.out.printf("Coverage after the sweep: %d/%d edges%n", coveredAfterSweep.size(), required.size());
 		System.out.println();
-		System.out.println("Edges closed by the sweep (uncovered by any GA bundle alone):");
-		for (Map.Entry<String, String> entry : closingScheduleByEdge.entrySet()) {
-			System.out.println("  " + entry.getKey() + "  <-  " + entry.getValue());
+		System.out.println("Edges newly covered during the sweep (not covered by any replayed bundle alone),"
+				+ " each with a witness (genotype + forced schedule):");
+		for (Map.Entry<String, Witness> entry : closingWitnessByEdge.entrySet()) {
+			Witness w = entry.getValue();
+			System.out.println("  " + entry.getKey() + "  <-  genotype=" + Arrays.toString(w.genotype) + " dest="
+					+ w.destinationProcessId + " order=" + w.schedule);
 		}
 
-		List<String> unreachableRaceEdges = new ArrayList<>();
-		List<String> unreachableNonRaceEdges = new ArrayList<>();
+		List<String> uncoveredRaceEdges = new ArrayList<>();
+		List<String> uncoveredNonRaceEdges = new ArrayList<>();
 		for (RequiredEdge edge : required) {
 			String key = edge.toString();
 			if (coveredAfterSweep.contains(key)) {
 				continue;
 			}
-			(raceEdgeKeys.contains(key) ? unreachableRaceEdges : unreachableNonRaceEdges).add(key);
+			(raceEdgeKeys.contains(key) ? uncoveredRaceEdges : uncoveredNonRaceEdges).add(key);
 		}
 
 		System.out.println();
-		System.out.println("Race-related edges STILL uncovered after exhausting every candidate arrival order"
-				+ " (structurally unreachable candidates, not scheduling non-determinism):");
-		unreachableRaceEdges.forEach(edge -> System.out.println("  " + edge));
+		System.out.println("RacePoint edges NOT covered under the inputs and orders tested here - this does"
+				+ " NOT establish they are unreachable under other inputs, a larger permutation sample, or"
+				+ " combinations across destinations (see racePointDiagnostics in the report for exactly"
+				+ " what was and was not tried):");
+		uncoveredRaceEdges.forEach(edge -> System.out.println("  " + edge));
 
 		System.out.println();
-		System.out.println("Non-race edges left uncovered (out of scope for this sweep - a data/distance"
-				+ " problem, not an arrival-order problem):");
-		unreachableNonRaceEdges.forEach(edge -> System.out.println("  " + edge));
+		System.out.println("Edges outside any detected RacePoint, left uncovered - this sweep does not"
+				+ " attempt these and makes no claim about why they are uncovered:");
+		uncoveredNonRaceEdges.forEach(edge -> System.out.println("  " + edge));
 
 		Map<String, Object> report = new LinkedHashMap<>();
+		report.put("configFile", args[0]);
+		report.put("bundlesFile", args[1]);
+		report.put("bundleCount", bundles.size());
+		report.put("permutationCap", permutationCap);
 		report.put("totalRequired", required.size());
-		report.put("gaOnlyCovered", coveredByGA.size());
-		report.put("sweepCovered", coveredAfterSweep.size());
-		report.put("closedBySweep", closingScheduleByEdge);
-		report.put("stillUncoveredRaceEdges", unreachableRaceEdges);
-		report.put("stillUncoveredNonRaceEdges", unreachableNonRaceEdges);
+		report.put("initialCoverage", coveredByBundlesAlone.size());
+		report.put("initialCoverageTimeouts", initialTimeouts);
+		report.put("coverageAfterSweep", coveredAfterSweep.size());
+		Map<String, Map<String, Object>> witnessOut = new LinkedHashMap<>();
+		for (Map.Entry<String, Witness> entry : closingWitnessByEdge.entrySet()) {
+			Witness w = entry.getValue();
+			Map<String, Object> w2 = new LinkedHashMap<>();
+			w2.put("genotype", w.genotype);
+			w2.put("schedule", w.schedule);
+			w2.put("destinationProcessId", w.destinationProcessId);
+			witnessOut.put(entry.getKey(), w2);
+		}
+		report.put("newlyCoveredBySweep", witnessOut);
+		report.put("uncoveredRaceEdgesNotEstablishedUnreachable", uncoveredRaceEdges);
+		report.put("uncoveredNonRaceEdges", uncoveredNonRaceEdges);
+		report.put("racePointDiagnostics", racePointDiagnostics);
 		File reportFile = new File(args[1].replaceAll("\\.json$", "") + "-sweep-report.json");
 		new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(reportFile, report);
 		System.out.println();

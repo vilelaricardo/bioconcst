@@ -49,6 +49,17 @@ public final class RaceScheduleSweep {
 		return schedules;
 	}
 
+	/**
+	 * True when candidateSchedules(...) for this many candidates enumerates
+	 * every possible arrival order (K! &lt;= permutationCap), false when it
+	 * falls back to a random sample of distinct permutations instead - a
+	 * caller reporting results needs to say which happened, since a sampled
+	 * sweep finding nothing is much weaker evidence than an exhaustive one.
+	 */
+	public static boolean isExhaustive(int candidateCount, int permutationCap) {
+		return factorial(candidateCount) <= permutationCap;
+	}
+
 	private static String toInlineLine(int destinationProcessId, List<Integer> order) {
 		List<String> parts = order.stream().map(String::valueOf).toList();
 		return destinationProcessId + " " + String.join(",", parts);
