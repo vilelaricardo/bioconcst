@@ -374,6 +374,96 @@ class GraphDistanceTest {
 	}
 
 	@Test
+	void aScopedListMayCombineALocalSourceWithACrossSourceInTheSameProcess() {
+		// Exactly the shape R2..R4 need in a linear chain like RIP: the
+		// SAME scoped entry both looks at this process's own local
+		// predicate (in case saturation/divergence happens right here)
+		// AND recurses into whichever process fed its own receive (in
+		// case the real cause is further upstream) - the two contributions
+		// are summed, not chosen between.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
+				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B0", "P#main:1", "P#main:B0");
+		Map<String, Integer> branchPredicates = Map.of("P#main:B1", Opcodes.IF_ICMPLT);
+		// Process 1 (upstream) has its own local predicate observed -
+		// this is the base of the chain, reached recursively below.
+		// Process 2 ALSO has its own local predicate observed (distinct
+		// operands, so its contribution is independently checkable), on
+		// top of recursing into process 1.
+		Map<Integer, Set<String>> observed = Map.of(1, Set.of("P#main:B1"), 2, Set.of("P#main:B1"));
+		Map<Integer, Map<String, int[]>> operands = Map.of(
+				1, Map.of("P#main:B1", new int[] { 10, 5 }),
+				2, Map.of("P#main:B1", new int[] { 20, 5 }));
+		Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = Map.of(2, Map.of("P#main:5", 1));
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of(
+				"P#main:0", java.util.List.of(new GraphDistance.CausalSource("P#main:B1", true)),
+				"2@P#main:0", java.util.List.of(
+						new GraphDistance.CausalSource("P#main:B1", true),
+						new GraphDistance.CausalSource("P#main:5", "P#main:0")));
+		RequiredEdge edge = new RequiredEdge(RequiredEdge.Kind.MESSAGE, 2, "P#main:0", 2, "P#main:1");
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, branchPredicates, observed, operands,
+				observedSenderByReceiveEdge, causalDistance);
+
+		// Process 1's own sideDistance("P#main:0", 1) - base of the chain,
+		// no scoped override, falls to the role-level local source:
+		// BranchDistance.compute(IF_ICMPLT, 10, 5, true) = 6/7 (already
+		// proven elsewhere in this file), path length 1 -> 6/7.
+		// Process 2's local contribution: BranchDistance.compute(IF_ICMPLT, 20, 5, true).
+		// raw = (20-5)+1 = 16, normalized = 16/17 (BranchDistance clamps
+		// the normalized form to (raw)/(raw+1) - same formula as the 6/7
+		// case: 6/(6+1)).
+		// chainedSum for process 2 = local (16/17) + cross (6/7, process 1's
+		// result) - summed, not averaged or chosen between. missingCount=1,
+		// path length 1 -> send side = 16/17 + 6/7.
+		// Receive side: P#main:1 -> B0, unobserved for process 2,
+		// missingCount=1 but firstMissingIdx=0 (entry block itself) -> the
+		// structural-fallback branch never fires -> stays at the 1.0 default.
+		double expectedLocal = 16.0 / 17.0;
+		double expectedCross = 6.0 / 7.0;
+		double expectedSend = expectedLocal + expectedCross;
+		double expectedDistance = (expectedSend + 1.0) / 2.0;
+		assertEquals(expectedDistance, distance, 1e-9,
+				"a scoped list's local and cross contributions must both be summed, not one replacing the other");
+	}
+
+	@Test
+	void aCycleInTheDeclaredChainSkipsJustThatSourceInsteadOfRecursingForever() {
+		// Two processes each configured to recurse into the other -
+		// exactly the kind of misconfiguration this project's own
+		// dependency model assumes never happens (finite, acyclic chains
+		// only), but must fail soft rather than StackOverflowError and
+		// take down an entire GA run over one bad edge.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
+				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B0", "P#main:1", "P#main:B0");
+		Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = Map.of(
+				1, Map.of("P#main:5", 2),
+				2, Map.of("P#main:5", 1));
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of(
+				"1@P#main:0", java.util.List.of(new GraphDistance.CausalSource("P#main:5", "P#main:0")),
+				"2@P#main:0", java.util.List.of(new GraphDistance.CausalSource("P#main:5", "P#main:0")));
+		RequiredEdge edge = new RequiredEdge(RequiredEdge.Kind.MESSAGE, 1, "P#main:0", 1, "P#main:1");
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, NO_PREDICATES, Map.of(), NO_OPERANDS,
+				observedSenderByReceiveEdge, causalDistance);
+
+		// process1 recurses into process2 (pair "2@P#main:0", not yet
+		// active); process2 tries to recurse back into process1, but
+		// "1@P#main:0" is already on the active path - that source is
+		// skipped, process2 resolves nothing and falls back to the
+		// structural default (1.0, since firstMissingIdx=0 here skips the
+		// normal structural-fallback branch too). process1's chainedSum
+		// borrows that 1.0 -> send side = (1-1+1.0)/1 = 1.0. Receive side
+		// (P#main:1 -> same entry block, unobserved) also stays at 1.0 by
+		// the same reasoning. Overall: (1.0 + 1.0) / 2 = 1.0 - finite,
+		// not a crash, and no worse than the ordinary fail-soft maximum.
+		assertEquals(1.0, distance, 1e-9);
+	}
+
+	@Test
 	void computeAveragesTheSendAndReceiveSidesEqually() {
 		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
 				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));

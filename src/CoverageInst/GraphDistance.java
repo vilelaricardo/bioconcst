@@ -20,6 +20,18 @@ import java.util.Set;
  * its operands aren't available (e.g. a String#equals-based branch, which
  * has no natural numeric gradient) - never a regression versus not having
  * branch distance at all.
+ *
+ * causalDistance's cross-process chaining assumes the declared dependency
+ * graph is finite and acyclic (a real message chain never loops a value
+ * back through itself) - arbitrary cycles are not a validated case. As a
+ * defensive measure against a misconfigured or accidentally cyclic chain
+ * silently crashing an entire GA run with a StackOverflowError, compute()
+ * tracks the set of "processId@targetSenderEdge" pairs already being
+ * resolved on the current recursion path; a source that would recurse
+ * into a pair already active is skipped as unresolved (same as any other
+ * not-yet-observed source), not followed - the remaining sources in that
+ * same list, or the plain structural fallback if none resolve, still
+ * produce a usable gradient instead of aborting the evaluation.
  */
 public final class GraphDistance {
 
@@ -70,10 +82,10 @@ public final class GraphDistance {
 			Map<String, List<CausalSource>> causalDistance) {
 		double sendDistance = sideDistance(edge.senderEdgeId, edge.senderProcessId, graphs, syncEdgeBlocks,
 				branchPredicates, observedNodesByProcess, observedOperandsByProcess, observedSenderByReceiveEdge,
-				causalDistance);
+				causalDistance, Set.of(edge.senderProcessId + "@" + edge.senderEdgeId));
 		double receiveDistance = sideDistance(edge.receiverEdgeId, edge.receiverProcessId, graphs, syncEdgeBlocks,
 				branchPredicates, observedNodesByProcess, observedOperandsByProcess, observedSenderByReceiveEdge,
-				causalDistance);
+				causalDistance, Set.of(edge.receiverProcessId + "@" + edge.receiverEdgeId));
 		return (sendDistance + receiveDistance) / 2.0;
 	}
 
@@ -133,7 +145,7 @@ public final class GraphDistance {
 			Map<Integer, Set<String>> observedNodesByProcess,
 			Map<Integer, Map<String, int[]>> observedOperandsByProcess,
 			Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge,
-			Map<String, List<CausalSource>> causalDistance) {
+			Map<String, List<CausalSource>> causalDistance, Set<String> activePairs) {
 		String blockId = syncEdgeBlocks.get(syncEdgeId);
 		if (blockId == null) {
 			// Should never happen for a real declared edge id - fail soft
@@ -214,9 +226,28 @@ public final class GraphDistance {
 					// nothing to borrow from, skip.
 					continue;
 				}
+				String nextPair = realSender + "@" + source.targetSenderEdge;
+				if (activePairs.contains(nextPair)) {
+					// A real cycle in the declared chain (e.g. two
+					// instances each configured to recurse into the
+					// other) - the project's own dependency model assumes
+					// finite, acyclic chains (see this class's own
+					// javadoc), so a cycle here is a configuration error,
+					// not something to resolve a "right" value for. Skip
+					// just this one source as unresolved - same as any
+					// other not-yet-observed source above - rather than
+					// recursing forever and crashing the whole GA run on
+					// one bad edge; the remaining sources in this same
+					// list, or the structural fallback if none resolve,
+					// still produce a usable (if less informative)
+					// gradient.
+					continue;
+				}
+				Set<String> nextActivePairs = new java.util.HashSet<>(activePairs);
+				nextActivePairs.add(nextPair);
 				chainedSum += sideDistance(source.targetSenderEdge, realSender, graphs, syncEdgeBlocks,
 						branchPredicates, observedNodesByProcess, observedOperandsByProcess,
-						observedSenderByReceiveEdge, causalDistance);
+						observedSenderByReceiveEdge, causalDistance, nextActivePairs);
 				resolvedAny = true;
 			}
 			if (resolvedAny) {
