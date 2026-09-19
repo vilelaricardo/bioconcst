@@ -1,0 +1,298 @@
+{
+  "benchmark": {
+    "name": "two-phase-commit",
+    "path": "./benchmark/synthetic/005_two_phase_commit",
+    "processes": [
+      "Coordinator",
+      "Participant",
+      "Participant",
+      "Participant",
+      "Participant"
+    ],
+    "parseFiles": [
+      "Coordinator.class",
+      "Participant.class"
+    ],
+    "ignoreFiles": [
+      "HelperClass.class"
+    ],
+    "testSetupProcesses": [
+      {
+        "id": 0,
+        "className": "Coordinator",
+        "args": ""
+      },
+      {
+        "id": 1,
+        "className": "Participant",
+        "args": "1 TESTDATA0"
+      },
+      {
+        "id": 2,
+        "className": "Participant",
+        "args": "2 TESTDATA1"
+      },
+      {
+        "id": 3,
+        "className": "Participant",
+        "args": "3 TESTDATA2"
+      },
+      {
+        "id": 4,
+        "className": "Participant",
+        "args": "4 TESTDATA3"
+      }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      {
+        "min": 0,
+        "max": 999
+      },
+      {
+        "min": 0,
+        "max": 999
+      },
+      {
+        "min": 0,
+        "max": 999
+      },
+      {
+        "min": 0,
+        "max": 999
+      }
+    ],
+    "execTimeLimitMs": 20000,
+    "coverageInst": {
+      "roleLinks": [
+        {
+          "from": "Participant",
+          "to": "Coordinator"
+        },
+        {
+          "from": "Coordinator",
+          "to": "Participant"
+        }
+      ],
+      "fixedMessageTargets": {
+        "Coordinator#main:5": 1,
+        "Coordinator#main:6": 2,
+        "Coordinator#main:7": 3,
+        "Coordinator#main:8": 4,
+        "Coordinator#main:9": 1,
+        "Coordinator#main:10": 2,
+        "Coordinator#main:11": 3,
+        "Coordinator#main:12": 4
+      },
+      "fixedMessageSources": {
+        "Coordinator#main:1": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "Coordinator#main:2": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "Coordinator#main:3": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "Coordinator#main:4": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "causalDistance": {
+        "Participant#main:1": [
+          {
+            "localBlock": "Participant#main:B1",
+            "wantedTaken": false
+          },
+          {
+            "localBlock": "Participant#main:B0",
+            "wantedTaken": false
+          }
+        ],
+        "Participant#main:2": [
+          {
+            "localBlock": "Participant#main:B1",
+            "wantedTaken": true
+          },
+          {
+            "localBlock": "Participant#main:B0",
+            "wantedTaken": true
+          }
+        ],
+        "Coordinator#main:5": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:1"
+          }
+        ],
+        "Coordinator#main:6": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:1"
+          }
+        ],
+        "Coordinator#main:7": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:1"
+          }
+        ],
+        "Coordinator#main:8": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:1"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:1"
+          }
+        ],
+        "Coordinator#main:9": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:2"
+          }
+        ],
+        "Coordinator#main:10": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:2"
+          }
+        ],
+        "Coordinator#main:11": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:2"
+          }
+        ],
+        "Coordinator#main:12": [
+          {
+            "viaReceiverEdge": "Coordinator#main:1",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:2",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:3",
+            "targetSenderEdge": "Participant#main:2"
+          },
+          {
+            "viaReceiverEdge": "Coordinator#main:4",
+            "targetSenderEdge": "Participant#main:2"
+          }
+        ]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 10,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 999,
+    "threadExecutors": 12,
+    "executions": 24
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "two-phase-commit-covinst-elite-full"
+  }
+}

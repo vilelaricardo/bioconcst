@@ -1,0 +1,123 @@
+{
+  "benchmark": {
+    "name": "bully-election",
+    "path": "./benchmark/synthetic/006_bully_election",
+    "processes": [
+      "Node",
+      "Node",
+      "Node"
+    ],
+    "parseFiles": [
+      "Node.class"
+    ],
+    "ignoreFiles": [
+      "HelperClass.class"
+    ],
+    "testSetupProcesses": [
+      {
+        "id": 1,
+        "className": "Node",
+        "args": "1 3"
+      },
+      {
+        "id": 2,
+        "className": "Node",
+        "args": "2 3 TESTDATA0"
+      },
+      {
+        "id": 3,
+        "className": "Node",
+        "args": "3 3 TESTDATA1"
+      }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      {
+        "min": 0,
+        "max": 999
+      },
+      {
+        "min": 0,
+        "max": 999
+      }
+    ],
+    "execTimeLimitMs": 45000,
+    "coverageInst": {
+      "roleLinks": [
+        {
+          "from": "Node",
+          "to": "Node"
+        }
+      ],
+      "fixedMessageSources": {
+        "1@Node#main:5": [
+          2,
+          3
+        ],
+        "2@Node#main:5": [
+          1,
+          3
+        ],
+        "3@Node#main:5": [
+          1,
+          2
+        ]
+      },
+      "causalDistance": {
+        "Node#main:0": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": false
+          }
+        ],
+        "Node#main:1": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": false
+          }
+        ],
+        "Node#main:2": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": false
+          }
+        ],
+        "Node#main:3": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": false
+          }
+        ],
+        "Node#main:4": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": false
+          }
+        ],
+        "Node#main:5": [
+          {
+            "localBlock": "Node#main:B1",
+            "wantedTaken": true
+          }
+        ]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 10,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 999,
+    "threadExecutors": 8,
+    "executions": 24
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "bully-election-covinst-elite-full"
+  }
+}

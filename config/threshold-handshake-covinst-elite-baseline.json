@@ -1,0 +1,69 @@
+{
+  "benchmark": {
+    "name": "threshold-handshake",
+    "path": "./benchmark/synthetic/002_threshold_handshake",
+    "processes": [
+      "ThresholdHandshake"
+    ],
+    "parseFiles": [
+      "ThresholdHandshake.class",
+      "Worker.class",
+      "Celebrant.class"
+    ],
+    "ignoreFiles": [
+      "SharedState.class"
+    ],
+    "testSetupProcesses": [
+      {
+        "id": 0,
+        "className": "ThresholdHandshake",
+        "args": "TESTDATA"
+      }
+    ],
+    "argumentsLength": 2,
+    "argumentRanges": [
+      {
+        "min": 0,
+        "max": 1000
+      },
+      {
+        "min": 0,
+        "max": 1000
+      }
+    ],
+    "coverageInst": {
+      "extraClassesByRole": {
+        "ThresholdHandshake": [
+          "ThresholdHandshake",
+          "Worker",
+          "Celebrant"
+        ]
+      },
+      "identityGroups": {
+        "ThresholdHandshake#main:0": "doneGates",
+        "ThresholdHandshake#main:1": "doneGates",
+        "Worker#run:0": "doneGates",
+        "Worker#run:1": "doneGates",
+        "ThresholdHandshake#main:2": "celebration",
+        "Celebrant#run:0": "celebration"
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 20,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 1000,
+    "threadExecutors": 12,
+    "executions": 24
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "threshold-handshake-covinst-elite-baseline"
+  }
+}
