@@ -180,7 +180,7 @@ public final class GraphDistance {
 		// lookup below would "succeed" with a flag operand (always exactly
 		// 0 or 1, no continuous gradient) and silently mask the very case
 		// causalDistance exists to fix.
-		List<CausalSource> sources = causalDistance.get(syncEdgeId);
+		List<CausalSource> sources = lookupScopedCausalSources(causalDistance, processId, syncEdgeId);
 		if (sources != null && !sources.isEmpty()) {
 			double chainedSum = 0.0;
 			boolean resolvedAny = false;
@@ -237,5 +237,33 @@ public final class GraphDistance {
 		}
 
 		return (missingCount - 1 + divergenceContribution) / path.size();
+	}
+
+	/**
+	 * Same scoped-with-fallback lookup {@code RequiredElementsGenerator}
+	 * already uses for {@code fixedMessageTargets}/{@code
+	 * fixedMessageSources} ("{@code <processId>@<edgeId>}", checked first,
+	 * falling back to the plain role-level "{@code <edgeId>}" key) -
+	 * needed here for the same reason a ring/chain topology needs it
+	 * there: several process instances of the same role (e.g. four
+	 * Router instances in a linear wave) share one edge id per call site,
+	 * but a chained causalDistance source for one instance (e.g. "recurse
+	 * into whichever process fed my own receive") does not apply to
+	 * another instance at a different position in the chain (e.g. the
+	 * first hop, which has no same-role upstream to recurse into and must
+	 * terminate on its own local source instead). The scoped list
+	 * REPLACES the role-level one entirely for that process (it is not
+	 * merged) - a scoped declaration that still wants its own local
+	 * source alongside a chained one must repeat both in the same list,
+	 * exactly as fixedMessageSources callers already do for other maps.
+	 * Purely additive: any config using only role-level keys (every
+	 * benchmark before this) sees byte-for-byte the same lookup result,
+	 * since {@code processId + "@" + edgeId} never collides with an
+	 * existing plain key.
+	 */
+	private static List<CausalSource> lookupScopedCausalSources(Map<String, List<CausalSource>> causalDistance,
+			int processId, String syncEdgeId) {
+		List<CausalSource> scoped = causalDistance.get(processId + "@" + syncEdgeId);
+		return scoped != null ? scoped : causalDistance.get(syncEdgeId);
 	}
 }

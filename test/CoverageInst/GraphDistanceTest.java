@@ -218,6 +218,162 @@ class GraphDistanceTest {
 	}
 
 	@Test
+	void scopedCausalSourceTakesPrecedenceOverTheRoleLevelOneForTheSameProcess() {
+		// Same shape as divergingAtARecognizedNumericPredicateUsesBranchDistanceForThatStep
+		// (already independently verified there: BranchDistance.compute(IF_ICMPLT, 10, 5, true) = 6/7,
+		// so the send side alone is (6/7)/2 = 3/7 once divided by this test's
+		// path length of 2), but the LOCAL source is now declared TWICE for
+		// the same edge id: once role-level (pointing at a block with no
+		// recorded operands at all, which would fail soft to the flat 0.5
+		// pattern if it were the one actually used) and once scoped to
+		// process 4 specifically (pointing at the real, resolvable block).
+		// A scoped-with-fallback lookup must pick the scoped entry, not
+		// silently prefer or merge in the role-level one.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0", Map.of("P#main:B0",
+				java.util.List.of("P#main:B1", "P#main:B2"), "P#main:B1", java.util.List.of(), "P#main:B2",
+				java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B1", "P#main:1", "P#main:B0");
+		Map<String, Integer> branchPredicates = Map.of("P#main:B0", Opcodes.IF_ICMPLT);
+		Map<Integer, Set<String>> observed = Map.of(4, Set.of("P#main:B0"));
+		Map<Integer, Map<String, int[]>> operands = Map.of(4, Map.of("P#main:B0", new int[] { 10, 5 }));
+		RequiredEdge edge = new RequiredEdge(RequiredEdge.Kind.MESSAGE, 4, "P#main:0", 4, "P#main:1");
+
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of(
+				"P#main:0", java.util.List.of(new GraphDistance.CausalSource("NoSuchBlock#main:B0", true)),
+				"4@P#main:0", java.util.List.of(new GraphDistance.CausalSource("P#main:B0", true)));
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, branchPredicates, observed, operands,
+				Map.of(), causalDistance);
+
+		// send side ("P#main:0" -> B1, path [B0,B1] length 2): B0 is
+		// observed so only B1 is missing (missingCount=1); the scoped
+		// source's divergenceContribution = 6/7 -> (1-1+6/7)/2 = 3/7.
+		// receive side ("P#main:1" -> B0, path [B0] length 1): B0 IS
+		// observed for process 4 -> missingCount=0 -> 0.0 immediately.
+		// Average: (3/7 + 0) / 2 = 3/14.
+		assertEquals(3.0 / 14.0, distance, 1e-9,
+				"the scoped 4@P#main:0 source must win over the role-level P#main:0 one");
+	}
+
+	@Test
+	void roleLevelCausalSourceStillAppliesToAProcessWithNoScopedOverrideOfItsOwn() {
+		// Two processes share the same role-level causalDistance entry (no
+		// scoped key for EITHER of them this time) - confirms that simply
+		// having the scoped-lookup machinery in place does not change the
+		// plain single-key behavior every existing benchmark config relies
+		// on. Reuses the exact shape/numbers as
+		// divergingAtARecognizedNumericPredicateUsesBranchDistanceForThatStep.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0", Map.of("P#main:B0",
+				java.util.List.of("P#main:B1", "P#main:B2"), "P#main:B1", java.util.List.of(), "P#main:B2",
+				java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B1", "P#main:1", "P#main:B0");
+		Map<String, Integer> branchPredicates = Map.of("P#main:B0", Opcodes.IF_ICMPLT);
+		Map<Integer, Set<String>> observed = Map.of(0, Set.of("P#main:B0"));
+		Map<Integer, Map<String, int[]>> operands = Map.of(0, Map.of("P#main:B0", new int[] { 10, 5 }));
+		RequiredEdge edge = messageEdge("P#main:0", "P#main:1");
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of("P#main:0",
+				java.util.List.of(new GraphDistance.CausalSource("P#main:B0", true)));
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, branchPredicates, observed, operands,
+				Map.of(), causalDistance);
+
+		assertEquals(3.0 / 14.0, distance, 1e-9);
+	}
+
+	@Test
+	void aProcessWithNeitherAScopedNorARoleLevelSourceFallsBackToTheStructuralDefault() {
+		// The base-of-recursion case: causalDistance has entries for OTHER
+		// processes/edges, but none at all - scoped or role-level - for
+		// this specific (processId, syncEdgeId) pair. Must behave exactly
+		// like divergingWithNoRecognizedPredicateFallsBackToTheFlatPenalty,
+		// not crash or silently treat the edge as resolved.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0", Map.of("P#main:B0",
+				java.util.List.of("P#main:B1", "P#main:B2"), "P#main:B1", java.util.List.of(), "P#main:B2",
+				java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B1", "P#main:1", "P#main:B0");
+		Map<Integer, Set<String>> observed = Map.of(0, Set.of("P#main:B0"));
+		RequiredEdge edge = messageEdge("P#main:0", "P#main:1");
+		// Present, but for a completely unrelated edge id - proves an
+		// unrelated entry elsewhere in the map cannot leak into this one.
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of("Other#main:0",
+				java.util.List.of(new GraphDistance.CausalSource("P#main:B0", true)));
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, NO_PREDICATES, observed, NO_OPERANDS,
+				Map.of(), causalDistance);
+
+		assertEquals(0.25, distance);
+	}
+
+	@Test
+	void chainedScopedSourcesRecurseThroughEveryLinkDownToTheRoleLevelBaseCase() {
+		// Three instances of the SAME shared role (like RIP's four Router
+		// instances, or any linear chain) - process 3's send borrows
+		// process 2's, which borrows process 1's, which has no scoped
+		// override at all and terminates on the plain role-level LOCAL
+		// source (the chain's base case, e.g. the first router with no
+		// same-role upstream to recurse into). All three share one
+		// ControlFlowGraph/syncEdgeBlocks (same class), matching how four
+		// Router instances share Router#main's block ids in practice.
+		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
+				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));
+		Map<String, ControlFlowGraph> graphs = Map.of("P#main", graph);
+		Map<String, String> syncEdgeBlocks = Map.of("P#main:0", "P#main:B0", "P#main:1", "P#main:B0");
+		Map<String, Integer> branchPredicates = Map.of("P#main:B1", Opcodes.IF_ICMPLT);
+		// None of the three processes observed B0 itself (forcing
+		// missingCount=1 for each one's own sideDistance("P#main:0", ...)),
+		// but process 1 DID reach B1 (its own local predicate) with real
+		// operands - the value every level of the chain must ultimately
+		// recover.
+		Map<Integer, Set<String>> observed = Map.of(1, Set.of("P#main:B1"));
+		Map<Integer, Map<String, int[]>> operands = Map.of(1, Map.of("P#main:B1", new int[] { 10, 5 }));
+		Map<Integer, Map<String, Integer>> observedSenderByReceiveEdge = Map.of(
+				3, Map.of("P#main:5", 2),
+				2, Map.of("P#main:5", 1));
+		Map<String, java.util.List<GraphDistance.CausalSource>> causalDistance = Map.of(
+				// Base case: process 1 has no scoped "1@P#main:0" entry at
+				// all, so it falls back to this role-level LOCAL source and
+				// the recursion terminates here.
+				"P#main:0", java.util.List.of(new GraphDistance.CausalSource("P#main:B1", true)),
+				// Each non-base instance's scoped entry recurses into
+				// whichever process actually fed its own receive.
+				"2@P#main:0",
+				java.util.List.of(new GraphDistance.CausalSource("P#main:5", "P#main:0")),
+				"3@P#main:0",
+				java.util.List.of(new GraphDistance.CausalSource("P#main:5", "P#main:0")));
+		// Edge under test is process 3's send; its receiver side targets
+		// P#main:1, mapped to the same entry block B0, unobserved for
+		// process 3 and with no causalDistance entry of its own - since B0
+		// IS the entry block, missingCount=1 but firstMissingIdx=0, so the
+		// structural-fallback branch (which requires firstMissingIdx>0)
+		// never fires either, leaving divergenceContribution at its 1.0
+		// default. This isolates the chain's result to the send side alone.
+		RequiredEdge edge = new RequiredEdge(RequiredEdge.Kind.MESSAGE, 3, "P#main:0", 3, "P#main:1");
+
+		double distance = GraphDistance.compute(edge, graphs, syncEdgeBlocks, branchPredicates, observed, operands,
+				observedSenderByReceiveEdge, causalDistance);
+
+		// Base (process 1): BranchDistance.compute(IF_ICMPLT, 10, 5, true) = 6/7
+		// (independently verified in divergingAtARecognizedNumericPredicateUsesBranchDistanceForThatStep,
+		// same raw value, that test then divides by ITS OWN path length of
+		// 2 - here the path is length 1, so the raw 6/7 is not divided
+		// further): path P#main:0 -> P#main:B0 is the entry itself (length
+		// 1) -> sideDistance("P#main:0", 1) = (1-1+6/7)/1 = 6/7.
+		// process 2 recurses into process 1's 6/7, same path length 1 ->
+		// (1-1+6/7)/1 = 6/7. process 3 recurses into process 2's 6/7 the
+		// same way -> send side = 6/7.
+		// Receive side: P#main:1 also maps to the entry block B0, which is
+		// unobserved for process 3 too - missingCount=1 but
+		// firstMissingIdx=0, so the structural-fallback branch (guarded by
+		// firstMissingIdx>0) never fires, leaving the 1.0 default.
+		// Overall: (6/7 + 1.0) / 2 = 13/14.
+		assertEquals(13.0 / 14.0, distance, 1e-9,
+				"process 3's distance must reflect process 1's real local predicate through two levels of recursion, not fail soft at process 2 or 3");
+	}
+
+	@Test
 	void computeAveragesTheSendAndReceiveSidesEqually() {
 		ControlFlowGraph graph = new ControlFlowGraph("P#main:B0",
 				Map.of("P#main:B0", java.util.List.of(), "P#main:B1", java.util.List.of()));
