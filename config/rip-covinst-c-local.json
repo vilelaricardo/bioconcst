@@ -1,0 +1,66 @@
+{
+  "benchmark": {
+    "name": "rip-distance-vector-wave",
+    "path": "./benchmark/synthetic/010_rip_distance_vector_wave",
+    "processes": ["Destination", "Router", "Router", "Router", "Router", "Monitor"],
+    "parseFiles": ["Destination.class", "Router.class", "Monitor.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Destination", "args": "" },
+      { "id": 1, "className": "Router", "args": "1 2 TESTDATA0" },
+      { "id": 2, "className": "Router", "args": "2 3 TESTDATA1" },
+      { "id": 3, "className": "Router", "args": "3 4 TESTDATA2" },
+      { "id": 4, "className": "Router", "args": "4 5 TESTDATA3" },
+      { "id": 5, "className": "Monitor", "args": "" }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      { "min": 1, "max": 15 },
+      { "min": 1, "max": 15 },
+      { "min": 1, "max": 15 },
+      { "min": 1, "max": 15 }
+    ],
+    "execTimeLimitMs": 15000,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "Destination", "to": "Router" },
+        { "from": "Router", "to": "Router" },
+        { "from": "Router", "to": "Monitor" }
+      ],
+      "fixedMessageTargets": {
+        "1@Router#main:1": 2, "1@Router#main:2": 2,
+        "2@Router#main:1": 3, "2@Router#main:2": 3,
+        "3@Router#main:1": 4, "3@Router#main:2": 4,
+        "4@Router#main:1": 5, "4@Router#main:2": 5
+      },
+      "fixedMessageSources": {
+        "1@Router#main:0": [0],
+        "2@Router#main:0": [1],
+        "3@Router#main:0": [2],
+        "4@Router#main:0": [3],
+        "Monitor#main:0": [4]
+      },
+      "causalDistance": {
+        "Router#main:1": [{ "localBlock": "Router#main:B0", "wantedTaken": false }],
+        "Router#main:2": [{ "localBlock": "Router#main:B0", "wantedTaken": true }]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 1,
+    "generations": 1,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 1,
+    "max": 15,
+    "threadExecutors": 1,
+    "executions": 1
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "rip-covinst-c-local"
+  }
+}
