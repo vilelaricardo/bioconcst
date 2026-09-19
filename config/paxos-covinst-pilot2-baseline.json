@@ -1,0 +1,61 @@
+{
+  "benchmark": {
+    "name": "paxos",
+    "path": "./benchmark/synthetic/009_paxos",
+    "processes": ["Proposer", "Acceptor", "Acceptor", "Acceptor"],
+    "parseFiles": ["Proposer.class", "Acceptor.class"],
+    "ignoreFiles": ["HelperClass.class"],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Proposer", "args": "" },
+      { "id": 1, "className": "Acceptor", "args": "1 TESTDATA0" },
+      { "id": 2, "className": "Acceptor", "args": "2 TESTDATA1" },
+      { "id": 3, "className": "Acceptor", "args": "3 TESTDATA2" }
+    ],
+    "argumentsLength": 3,
+    "argumentRanges": [
+      { "min": 0, "max": 20000 },
+      { "min": 0, "max": 20000 },
+      { "min": 0, "max": 20000 }
+    ],
+    "execTimeLimitMs": 20000,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "Acceptor", "to": "Proposer" },
+        { "from": "Proposer", "to": "Acceptor" }
+      ],
+      "fixedMessageTargets": {
+        "Proposer#main:4": 1,
+        "Proposer#main:5": 2,
+        "Proposer#main:6": 3,
+        "Proposer#main:7": 1,
+        "Proposer#main:8": 2,
+        "Proposer#main:9": 3
+      },
+      "fixedMessageSources": {
+        "Proposer#main:1": [1, 2, 3],
+        "Proposer#main:2": [1, 2, 3],
+        "Proposer#main:3": [1, 2, 3],
+        "Proposer#main:10": [1, 2, 3],
+        "Proposer#main:11": [1, 2, 3],
+        "Proposer#main:12": [1, 2, 3]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 15,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 20000,
+    "threadExecutors": 12,
+    "executions": 24
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "paxos-covinst-pilot2-baseline"
+  }
+}
