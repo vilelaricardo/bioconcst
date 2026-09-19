@@ -1,0 +1,86 @@
+{
+  "benchmark": {
+    "name": "raft-election",
+    "path": "./benchmark/synthetic/004_raft_election",
+    "processes": [
+      "Candidate",
+      "Peer",
+      "Peer",
+      "Peer",
+      "Peer"
+    ],
+    "parseFiles": [
+      "Candidate.class",
+      "Peer.class"
+    ],
+    "ignoreFiles": [
+      "HelperClass.class"
+    ],
+    "testSetupProcesses": [
+      { "id": 0, "className": "Candidate", "args": "" },
+      { "id": 1, "className": "Peer", "args": "1 TESTDATA0" },
+      { "id": 2, "className": "Peer", "args": "2 TESTDATA1" },
+      { "id": 3, "className": "Peer", "args": "3 TESTDATA2" },
+      { "id": 4, "className": "Peer", "args": "4 TESTDATA3" }
+    ],
+    "argumentsLength": 4,
+    "argumentRanges": [
+      { "min": 0, "max": 31249 },
+      { "min": 0, "max": 31249 },
+      { "min": 0, "max": 31249 },
+      { "min": 0, "max": 31249 }
+    ],
+    "execTimeLimitMs": 20000,
+    "coverageInst": {
+      "roleLinks": [
+        { "from": "Peer", "to": "Candidate" },
+        { "from": "Candidate", "to": "Peer" }
+      ],
+      "fixedMessageTargets": {
+        "Candidate#main:5": 1,
+        "Candidate#main:6": 2,
+        "Candidate#main:7": 3,
+        "Candidate#main:8": 4,
+        "Candidate#main:9": 1,
+        "Candidate#main:10": 2,
+        "Candidate#main:11": 3,
+        "Candidate#main:12": 4
+      },
+      "fixedMessageSources": {
+        "Candidate#main:1": [1, 2, 3, 4],
+        "Candidate#main:2": [1, 2, 3, 4],
+        "Candidate#main:3": [1, 2, 3, 4],
+        "Candidate#main:4": [1, 2, 3, 4]
+      },
+      "causalDistance": {
+        "Peer#main:1": [{ "localBlock": "Peer#main:B0", "wantedTaken": false }],
+        "Peer#main:2": [{ "localBlock": "Peer#main:B0", "wantedTaken": true }],
+        "Candidate#main:5": [{ "localBlock": "Candidate#main:B14", "wantedTaken": true }],
+        "Candidate#main:6": [{ "localBlock": "Candidate#main:B14", "wantedTaken": true }],
+        "Candidate#main:7": [{ "localBlock": "Candidate#main:B14", "wantedTaken": true }],
+        "Candidate#main:8": [{ "localBlock": "Candidate#main:B14", "wantedTaken": true }],
+        "Candidate#main:9": [{ "localBlock": "Candidate#main:B14", "wantedTaken": false }],
+        "Candidate#main:10": [{ "localBlock": "Candidate#main:B14", "wantedTaken": false }],
+        "Candidate#main:11": [{ "localBlock": "Candidate#main:B14", "wantedTaken": false }],
+        "Candidate#main:12": [{ "localBlock": "Candidate#main:B14", "wantedTaken": false }]
+      }
+    }
+  },
+  "ga": {
+    "populationSize": 16,
+    "generations": 10,
+    "mutationRate": 0.1,
+    "crossoverRate": 0.6,
+    "survivorsFraction": 0.3,
+    "offspringFraction": 0.7,
+    "min": 0,
+    "max": 31249,
+    "threadExecutors": 12,
+    "executions": 6
+  },
+  "strategy": "GA_COVINST",
+  "output": {
+    "directory": "./results",
+    "runName": "raft-election-covinst-rare-full"
+  }
+}
