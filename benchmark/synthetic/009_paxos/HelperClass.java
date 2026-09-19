@@ -15,10 +15,22 @@ public class HelperClass {
         return ip + ":" + port;
     }
 
-    public static void makeAddressFile(int processId, String address) throws IOException {
-        try (PrintWriter writer = new PrintWriter(new FileWriter("addr_" + processId + ".txt"))) {
+    /**
+     * socketId lets one process publish MORE THAN ONE socket's address (e.g.
+     * bully-election's Node uses a dedicated second socket purely for the
+     * final COORDINATOR announcement, so a "crashed" node's still-open main
+     * socket can never have a stray ELECTION/OK packet mistakenly consumed
+     * by the announcement receive - same multi-socket-per-process shape
+     * roller-coaster's Car/Passenger already use, generalized to any id).
+     */
+    public static void makeAddressFile(int processId, int socketId, String address) throws IOException {
+        try (PrintWriter writer = new PrintWriter(new FileWriter("addr_" + processId + "_" + socketId + ".txt"))) {
             writer.print(address);
         }
+    }
+
+    public static void makeAddressFile(int processId, String address) throws IOException {
+        makeAddressFile(processId, 1, address);
     }
 
     public static void markReady(int processId) throws IOException {
@@ -31,16 +43,25 @@ public class HelperClass {
         }
     }
 
+    public static String readRemoteIP(int processId, int socketId) throws IOException {
+        return readAddressParts(processId, socketId)[0];
+    }
+
+    public static int readRemotePort(int processId, int socketId) throws IOException {
+        return Integer.parseInt(readAddressParts(processId, socketId)[1]);
+    }
+
     public static String readRemoteIP(int processId) throws IOException {
-        return readAddressParts(processId)[0];
+        return readRemoteIP(processId, 1);
     }
 
     public static int readRemotePort(int processId) throws IOException {
-        return Integer.parseInt(readAddressParts(processId)[1]);
+        return readRemotePort(processId, 1);
     }
 
-    private static String[] readAddressParts(int processId) throws IOException {
-        try (BufferedReader br = new BufferedReader(new FileReader("addr_" + processId + ".txt"))) {
+    private static String[] readAddressParts(int processId, int socketId) throws IOException {
+        try (BufferedReader br = new BufferedReader(
+                new FileReader("addr_" + processId + "_" + socketId + ".txt"))) {
             String line;
             while ((line = br.readLine()) == null) {
                 // address file exists (waitForReady already returned) but the
@@ -52,7 +73,8 @@ public class HelperClass {
 
     public static void cleanup(int... processIds) {
         for (int id : processIds) {
-            new File("addr_" + id + ".txt").delete();
+            new File("addr_" + id + "_1.txt").delete();
+            new File("addr_" + id + "_2.txt").delete();
             new File("ready_" + id).delete();
         }
     }
